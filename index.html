@@ -279,9 +279,9 @@ function row(l,st,i,pct){
 
 var TOPNAMES=['Nilgün Gül'];
 function isTop(st){return TOPNAMES.indexOf(st.name)>=0}
-var MAXW=2,WEEKCAP=36,DEFQ=[5,4,5,5,5,6,6];
+var MAXW=2,WEEKCAP=34,DEFQ=[5,4,5,5,5,5,5];
 function weekQuotaSum(ws,ovDay,ovQ){var t=0;for(var i=0;i<7;i++){var ds=dstr(ws+i),rl=rules.get(ds)||{},q=(rl.quota!=null)?rl.quota:DEFQ[i];if(ds===ovDay)q=ovQ;t+=q}return t}
-function weekNormals(){var n=0;for(var i=0;i<7;i++){var ds=dstr(week+i);leaves.forEach(function(l){if(l.day===ds&&l.type==='I'&&staffById[l.staff_id])n++})}return n}
+function weekNormals(){var n=0;for(var i=0;i<7;i++){var ds=dstr(week+i);leaves.forEach(function(l){if(l.day===ds&&l.type==='I'&&staffById[l.staff_id]&&!staffById[l.staff_id].exempt)n++})}return n}
 function myWeekCount(){var n=0;for(var i=0;i<7;i++){var l=leaves.get(me.id+'|'+dstr(week+i));if(l&&(l.type==='I'||l.type==='M'))n++}return n}
 function dayCard(i,pct,r){
   var dn=week+i,tn=todayNum(),past=dn<tn,isT=dn===tn,used=r.used;
