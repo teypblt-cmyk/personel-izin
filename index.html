@@ -217,7 +217,7 @@ function renderInstall(){
 }
 
 function renderNav(){
-  var tabs=[['gun','📅','Günler'],['yuzde','📊','Öncelik'],['hareket','🕘','Hareketler']];
+  var tabs=[['gun','📅','Günler'],['yuzde','📊','Öncelik']];
   if(admin)tabs.push(['yon','🛠','Yönetici']);
   $('nav').innerHTML=tabs.map(function(t){return '<button data-a="tab" data-t="'+t[0]+'" class="'+(tab===t[0]?'on':'')+'"><i>'+t[1]+'</i>'+t[2]+'</button>'}).join('');
 }
@@ -331,7 +331,6 @@ function renderMain(){
   var h='';
   if(tab==='gun'){var c=compute();h=weekHead()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])}
   else if(tab==='yuzde'){h=weekHead()+pctTable(compute())}
-  else if(tab==='hareket'){h='<div class="card"><div class="sub">Son hareketler</div>'+feedHtml()+'</div>'}
   else if(tab==='yon'){h=adminTab()}
   el.innerHTML=h;
 }
