@@ -38,7 +38,18 @@ button,select,input,textarea{font:inherit;color:var(--ink)}
 .btn:disabled{opacity:.5}
 select,input,textarea{background:var(--fld);border:1px solid var(--line);border-radius:10px;padding:9px 10px;max-width:100%}
 textarea{width:100%;min-height:100px;margin:6px 0}
-.gate{max-width:380px;margin:8vh auto 0;text-align:center;display:flex;flex-direction:column;gap:10px}.gate h1{margin:0;font-size:22px}.gate .gi{font-size:44px;line-height:1}.gate select,.gate input{width:100%;box-sizing:border-box;text-align:center}.gate .btn.big{width:100%}.gate details{text-align:left}
+.gate{max-width:380px;margin:5vh auto 0;display:flex;flex-direction:column;align-items:center;text-align:center}
+.glogo{width:84px;height:84px;border-radius:26px;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#4f8bff,#2f56e6 60%,#6a30e6);box-shadow:0 14px 30px -10px rgba(47,86,230,.55);margin-bottom:14px}
+.gate h2{margin:0;font-size:26px;letter-spacing:-.4px}
+.gsub{margin:4px 0 20px;color:var(--mute);font-size:14.5px}
+.gcard{width:100%;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px 16px 16px;box-shadow:0 18px 40px -22px rgba(20,33,61,.35);text-align:left}
+.gl{display:block;font-size:12px;font-weight:700;color:var(--mute);text-transform:uppercase;letter-spacing:.6px;margin:2px 2px 6px}
+.gcard select,.gcard input{width:100%;padding:13px 12px;font-size:16px;margin-bottom:14px}
+.gcard input{letter-spacing:6px;text-align:center}.gcard input::placeholder{letter-spacing:4px}
+.gcard .btn.big{margin:4px 0 12px;border-radius:12px;font-size:16.5px}
+.ghint{font-size:12.5px;color:var(--mute);text-align:center;line-height:1.5}
+.gadm{margin-top:18px;width:100%;text-align:center}.gadm summary{color:var(--mute);font-size:13px;cursor:pointer;list-style:none}.gadm summary::-webkit-details-marker{display:none}.gadm .login{justify-content:center}
+body.gated .top h1{visibility:hidden}
 .login{display:flex;gap:8px;flex-wrap:wrap}.login select{flex:2 1 150px}.login input{flex:1 1 80px;min-width:80px}
 details>summary{cursor:pointer;padding:2px 0}
 #auth{padding:10px 12px}
@@ -192,12 +203,13 @@ function compute(){
 /* ---------- ekran ---------- */
 function gateHtml(){
   var prev=$('who')?$('who').value:'';
-  return '<div class="card gate"><div class="gi">🗓️</div><h1>Personel İzin</h1><div class="mute" style="margin-bottom:14px">Devam etmek için adınızı seçin ve PIN\'inizi girin.</div>'+
-  '<select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>'+
-  '<input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN">'+
+  var logo='<svg viewBox="0 0 64 64" width="44" height="44" aria-hidden="true"><rect x="8" y="12" width="48" height="44" rx="10" fill="#fff" fill-opacity=".95"/><rect x="8" y="12" width="48" height="14" rx="10" fill="#fff" fill-opacity=".55"/><rect x="19" y="5" width="6" height="14" rx="3" fill="#fff"/><rect x="39" y="5" width="6" height="14" rx="3" fill="#fff"/><path d="M21 40l8 8 15-17" fill="none" stroke="#2f6bff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  return '<div class="gate"><div class="glogo">'+logo+'</div><h2>Personel İzin</h2><p class="gsub">Haftalık izin seçimi</p>'+
+  '<div class="gcard"><label class="gl" for="who">Adınız</label><select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>'+
+  '<label class="gl" for="pin">PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="• • • •">'+
   '<button class="btn pri big" data-a="login">Giriş yap</button>'+
-  '<div class="mute s" style="margin-top:12px">İlk girişte size verilen geçici PIN\'i yazın, ardından kendi PIN\'inizi belirlersiniz.</div>'+
-  '<details style="margin-top:12px"><summary class="mute s">Yönetici girişi</summary><div class="login" style="margin-top:8px"><input id="apin" type="password" inputmode="numeric" autocomplete="off" placeholder="Yönetici PIN"><button class="btn" data-a="adm-in">Giriş</button></div></details></div>';
+  '<div class="ghint">İlk girişte size verilen geçici PIN\'i yazın.<br>Ardından kendi PIN\'inizi belirlersiniz.</div></div>'+
+  '<details class="gadm"><summary>Yönetici girişi</summary><div class="login" style="margin-top:8px"><input id="apin" type="password" inputmode="numeric" autocomplete="off" placeholder="Yönetici PIN"><button class="btn" data-a="adm-in">Giriş</button></div></details></div>';
 }
 function renderAuth(){
   var el=$('auth'),prev=$('who')?$('who').value:'',h='';
@@ -210,8 +222,6 @@ function renderAuth(){
   }
   if(admin){
     h+='<div class="row adminbar"><b>🛠 '+(admin.viaStaff?'Yönetici yetkiniz açık':'Yönetici modu açık')+'</b></div>';
-  }else{
-    h+='<details style="margin-top:8px"><summary class="mute s">Yönetici girişi</summary><div class="login" style="margin-top:8px"><input id="apin" type="password" inputmode="numeric" autocomplete="off" placeholder="Yönetici PIN"><button class="btn" data-a="adm-in">Giriş</button></div></details>';
   }
   el.innerHTML=h;
 }
@@ -342,6 +352,7 @@ function renderMain(){
   if(week>maxWeek())week=maxWeek();
   if(!ready){el.innerHTML='<div class="card empty">Yükleniyor…</div>';return}
   if(tab==='yon'&&!admin)tab='gun';
+  document.body.classList.toggle('gated',!me&&!admin);
   if(!me&&!admin){el.innerHTML=gateHtml();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
   var h='';
