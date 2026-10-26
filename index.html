@@ -140,6 +140,7 @@ function fmtAt(at){return new Intl.DateTimeFormat('tr-TR',{timeZone:TZ,day:'nume
 
 /* ---------- durum ---------- */
 var sb=null,staff=[],staffById={},leaves=new Map(),rules=new Map(),logs=[],ready=false,live=false;
+var FIRST_WEEK=Math.floor(Date.UTC(2026,8,21)/864e5);
 var me=null,admin=null,statusList=[],week=weekMon(todayNum()),selDay=wdOf(todayNum()),tab='gun',howOpen=false,deferredPrompt=null;
 var rT=0,pendingRender=false;
 
@@ -223,7 +224,7 @@ function renderNav(){
 
 function weekHead(){
   var tn=todayNum(),isCur=weekMon(tn)===week;
-  return '<div class="wk"><button class="btn" data-a="prev" aria-label="Önceki hafta">‹</button><div class="wt"><b>'+dLabel(week)+' – '+dLabel(week+6)+'</b><small>'+(isCur?'Bu hafta':'<a href="#" data-a="today">Bu haftaya dön</a>')+'</small></div><button class="btn" data-a="next" aria-label="Sonraki hafta">›</button></div>';
+  return '<div class="wk"><button class="btn" data-a="prev" aria-label="Önceki hafta"'+(week<=FIRST_WEEK?' disabled':'')+'>‹</button><div class="wt"><b>'+dLabel(week)+' – '+dLabel(week+6)+'</b><small>'+(isCur?'Bu hafta':'<a href="#" data-a="today">Bu haftaya dön</a>')+'</small></div><button class="btn" data-a="next" aria-label="Sonraki hafta"'+(week>=weekMon(todayNum())?' disabled':'')+'>›</button></div>';
 }
 
 function dayStrip(c){
@@ -430,8 +431,8 @@ async function act(a,d,el){
   switch(a){
     case 'tab':tab=d.t;renderNav();renderMain();if(tab==='yon')loadStatus();window.scrollTo(0,0);return;
     case 'selday':selDay=+d.i;renderMain();return;
-    case 'prev':week-=7;renderMain();return;
-    case 'next':week+=7;renderMain();return;
+    case 'prev':if(week<=FIRST_WEEK)return;week-=7;renderMain();return;
+    case 'next':if(week>=weekMon(todayNum()))return;week+=7;renderMain();return;
     case 'today':week=weekMon(todayNum());selDay=wdOf(todayNum());renderMain();return;
     case 'install':{if(deferredPrompt){deferredPrompt.prompt();try{await deferredPrompt.userChoice}catch(e){}deferredPrompt=null;renderInstall()}return}
     case 'inst-x':try{localStorage.setItem('izin_inst','1')}catch(e){}renderInstall();return;
