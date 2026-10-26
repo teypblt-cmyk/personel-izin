@@ -76,10 +76,10 @@ details>summary{cursor:pointer;padding:2px 0}
 .lg .tm{color:var(--mute);font-size:12.5px;min-width:92px}
 .tt{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
 .wrap{overflow-x:auto}
-table.pt{border-collapse:collapse;table-layout:fixed;width:100%;font-size:13.5px}
+table.pt{border-collapse:separate;border-spacing:0;table-layout:fixed;width:100%;min-width:560px;font-size:13.5px}
 .pt th,.pt td{border:1px solid var(--line);padding:4px 5px;text-align:center;white-space:nowrap}
 .pt th{background:var(--fld)}.pt th small{display:block;color:var(--mute);font-weight:400}
-.pt td.n{text-align:left;font-weight:600;position:sticky;left:0;background:var(--card)}
+.pt th.n,.pt td.n{width:128px;max-width:128px;overflow:hidden;text-overflow:ellipsis;z-index:2}.pt th.n{position:sticky;left:0}.pt td.n{text-align:left;font-weight:600;position:sticky;left:0;background:var(--card);box-shadow:2px 0 0 var(--line)}
 .pt tr.me td{background:var(--me)}.pt tr.me td.n{background:var(--me)}
 .bar{height:10px;border-radius:6px;margin-top:10px;background:linear-gradient(90deg,hsl(0,78%,44%),hsl(28,78%,44%),hsl(60,78%,48%),hsl(100,78%,40%),hsl(142,78%,40%))}
 .bl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mute)}
@@ -417,24 +417,20 @@ function pdfHtml(c){
     for(var d=0;d<7;d++){
       var l=leaves.get(st.id+'|'+dstr(week+d)),r1=c.res[d],cell='',cs='';
       if(l){
-        if(l.type==='I'){
-          if(r1.okIds[st.id])cell='<span style="color:#1a8f4c;font-size:'+(fs+6)+'px;font-weight:700">✓</span>';
-          else{cell='<span style="color:#9aa3b1;font-size:11px">sırada</span>'}
+        if(l.type==='I'||l.type==='M'){
+          if(l.type==='M'||r1.okIds[st.id]){cell='<span style="color:#1a8f4c;font-size:'+(fs+6)+'px;font-weight:700">✓</span>';cs='background:#e4f6ec;'}
         }else{
-          var col=l.type==='M'?'#c47a00':'#4b5fc4';
-          cell='<span style="color:'+col+';font-size:'+(fs+6)+'px;font-weight:700">✓</span><span style="color:'+col+';font-size:10px;font-weight:700;margin-left:2px">'+l.type+'</span>';
-          cs='background:'+(l.type==='M'?'#fff4dc':'#e9ecff')+';';
+          var col='#4b5fc4';
+          cell='<span style="color:'+col+';font-size:'+(fs+6)+'px;font-weight:700">✓</span><span style="color:'+col+';font-size:10px;font-weight:700;margin-left:2px">'+(l.type==='Y'?'Yıllık':'Rapor')+'</span>';
+          cs='background:#e9ecff;';
         }
-        if(l.type==='I'&&r1.okIds[st.id])cs='background:#e4f6ec;';
       }
       h+='<td style="text-align:center;border-bottom:1px solid #e1e6ee;border-left:1px solid #e1e6ee;'+cs+'">'+cell+'</td>';
     }
     h+='</tr>';
   });
-  h+='<tr style="height:'+Math.max(24,rh-2)+'px;background:#eef1f6;font-weight:700"><td style="padding:0 10px">Toplam / kontenjan</td>';
-  for(var e=0;e<7;e++){var rr=c.res[e];h+='<td style="text-align:center;border-left:1px solid #d5dbe6">'+(rr.fixed.length+rr.ok.length)+' / '+rr.quota+'</td>'}
-  h+='</tr></table>';
-  h+='<div style="margin-top:10px;font-size:11px;color:#5b6675"><span style="color:#1a8f4c;font-weight:700">✓</span> Normal izin &nbsp;·&nbsp; <span style="color:#c47a00;font-weight:700">✓M</span> Mazeretli &nbsp;·&nbsp; <span style="color:#4b5fc4;font-weight:700">✓Y</span> Yıllık izin &nbsp;·&nbsp; <span style="color:#4b5fc4;font-weight:700">✓R</span> Rapor &nbsp;·&nbsp; sırada: kontenjan dolduğu için bekliyor</div>';
+  h+='</table>';
+  h+='<div style="margin-top:10px;font-size:11px;color:#5b6675"><span style="color:#1a8f4c;font-weight:700">✓</span> Normal izin &nbsp;·&nbsp; <span style="color:#4b5fc4;font-weight:700">✓</span> Yıllık izin / Rapor (hücrede yazar)</div>';
   return h+'</div>';
 }
 var pdfFile=null;
@@ -587,7 +583,8 @@ async function act(a,d,el){
       break}
     case 'deact':{
       var s2=staffById[d.id];if(!s2||!confirm(s2.name+' listeden çıkarılsın mı? Geçmiş kayıtları saklanır.'))break;
-      r=await rpc('admin_set_active',{p_pin:admin.pin,p_staff:+d.id,p_active:false});
+      var ep=prompt('Onay için yönetici şifrenizi girin'+(admin.viaStaff?' (kendi PIN\'iniz)':''));if(ep===null||!ep.trim())break;
+      r=await rpc('admin_set_active',{p_pin:admin.viaStaff?me.id+':'+ep.trim():ep.trim(),p_staff:+d.id,p_active:false});
       if(r&&r.ok){await loadStaff();await loadStatus(true);renderAll()}
       break}
     case 'adm-pinchg':{
