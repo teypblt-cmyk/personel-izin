@@ -310,7 +310,7 @@ function adminTab(){
   var h='<div class="card"><div class="sub">Hafta kilidi</div><div class="row"><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+'</span><div class="sp"></div><button class="btn s" data-a="lockweek" data-v="1">🔒 Haftayı kilitle</button><button class="btn s" data-a="lockweek" data-v="0">Kilidi aç</button></div></div>';
   h+='<div class="card"><div class="sub">Personel, PIN ve yetki</div><div class="mute s" style="margin-bottom:8px">PIN\'ler şifreli saklanır, kimse okuyamaz. Unutan olursa "PIN belirle" ile geçici PIN verin, kişi girişte kendi PIN\'ini yeniden belirler.</div>'+staff.map(function(s){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')):'Durum yükleniyor…';
-    return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns"><button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN belirle</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği kaldır':'Yönetici yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button></div></div>'}).join('');
+    return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns"><button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği kaldır':'Yönetici yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button></div></div>'}).join('');
   h+='<div class="sub">Yeni personel ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik geçici PIN verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn pri" data-a="addstaff">Ekle</button><pre id="pinout" class="pinout"></pre></div>';
   h+='<div class="card"><div class="sub">Haftanın listesi (PDF)</div><div class="mute s" style="margin-bottom:8px">Seçili haftanın çizelgesini tek sayfa PDF yapar ve paylaşma penceresini açar. Pencerede WhatsApp\'ı seçin.</div><div class="row"><button class="btn pri" data-a="export-pdf">PDF hazırla ve gönder</button></div></div>'+
   '<div class="card"><div class="sub">Yedek</div><div class="mute s" style="margin-bottom:8px">Tüm izin kayıtlarını telefonunuza ya da bilgisayarınıza indirir. PIN\'ler dahil değildir.</div><div class="row"><button class="btn" data-a="export-csv">Excel için (CSV)</button><button class="btn" data-a="export-json">Tam yedek (JSON)</button></div></div>';
@@ -572,10 +572,9 @@ async function act(a,d,el){
       break}
     case 'setpinfor':{
       var s1=staffById[d.id];if(!s1)break;
-      var np0=prompt(s1.name+' için geçici PIN yazın (4-8 rakam). Boş bırakırsanız otomatik verilir.');
-      if(np0===null)break;
-      r=await rpc('admin_reset_pin',{p_pin:admin.pin,p_staff:+d.id,p_new:(np0.trim()||null)});
-      if(r&&r.ok){alert(r.name+' geçici PIN: '+r.pin+'\nKişi ilk girişte kendi PIN\'ini belirleyecek.');await loadStatus()}
+      if(!confirm(s1.name+' için PIN 0000 olarak sıfırlansın mı? Kişi bir sonraki girişte kendi PIN\'ini belirler.'))break;
+      r=await rpc('admin_reset_pin',{p_pin:admin.pin,p_staff:+d.id,p_new:'0000'});
+      if(r&&r.ok){await loadStatus();toast(r.name+' PIN\'i 0000 yapıldı')}
       break}
     case 'role':{
       var s3=staffById[d.id],mk=d.v==='1';
