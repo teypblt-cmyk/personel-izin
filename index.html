@@ -39,6 +39,7 @@ button,select,input,textarea{font:inherit;color:var(--ink)}
 select,input,textarea{background:var(--fld);border:1px solid var(--line);border-radius:10px;padding:9px 10px;max-width:100%}
 textarea{width:100%;min-height:100px;margin:6px 0}
 .acc>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;padding:2px 0}.acc>summary::-webkit-details-marker{display:none}.acc>summary::after{content:'▾';margin-left:auto;color:var(--mute);transition:transform .15s}.acc[open]>summary::after{transform:rotate(180deg)}
+.stf .btn.star{font-size:17px;line-height:1;padding:4px 10px;color:var(--mute)}.stf .btn.star.on{color:#e0a100;border-color:#e0a100;background:var(--waitbg)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}.chip{background:var(--fld);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13.5px}
 .gate{max-width:380px;margin:5vh auto 0;display:flex;flex-direction:column;align-items:center;text-align:center}
 .glogo{width:84px;height:84px;border-radius:26px;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#4f8bff,#2f56e6 60%,#6a30e6);box-shadow:0 14px 30px -10px rgba(47,86,230,.55);margin-bottom:14px}
@@ -176,10 +177,10 @@ function compute(){
   var wk=weekNo(week),pct={};staff.forEach(function(s){pct[s.id]=[]});
   for(var d=0;d<7;d++){
     var cnt={},hs={},m=0;
-    staff.forEach(function(s){var h=uses[s.id][d].filter(function(w){return w<wk}).sort(function(a,b){return b-a});cnt[s.id]=h.length;hs[s.id]=h;if(h.length>m)m=h.length});
+    staff.forEach(function(s){var h=uses[s.id][d].filter(function(w){return w<wk}).sort(function(a,b){return b-a});cnt[s.id]=h.length;hs[s.id]=h;if(h.length>m&&!isTop(s))m=h.length});
     var step=100/(m+1);
     staff.forEach(function(s){
-      var ks=[];staff.forEach(function(q){if(cnt[q.id]===cnt[s.id]&&!ks.some(function(k){return cmp(k,hs[q.id])===0}))ks.push(hs[q.id])});
+      var ks=[];staff.forEach(function(q){if(!isTop(q)&&cnt[q.id]===cnt[s.id]&&!ks.some(function(k){return cmp(k,hs[q.id])===0}))ks.push(hs[q.id])});
       ks.sort(cmp);var r=0;for(var t=0;t<ks.length;t++)if(cmp(ks[t],hs[s.id])===0){r=t;break}
       pct[s.id][d]=Math.round(100*(1-cnt[s.id]/(m+1))-(ks.length>1?r/ks.length*step*.5:0));
     });
@@ -194,9 +195,10 @@ function compute(){
       fixed.sort(function(a,b){return a.type<b.type?-1:a.type>b.type?1:nm(a).localeCompare(nm(b),'tr')});
       req.sort(function(a,b){return (pct[b.staff_id][i]-pct[a.staff_id][i])||(ts(a.created_at)-ts(b.created_at))||nm(a).localeCompare(nm(b),'tr')});
       var rule=rules.get(ds)||{},q=(rule.quota!=null)?rule.quota:DEFQ[i];
-      var slots=(q==null)?req.length:Math.max(0,q-fixed.length);
-      var ok=req.slice(0,slots),okIds={};ok.forEach(function(l){okIds[l.staff_id]=1});
-      res.push({ds:ds,fixed:fixed,ok:ok,okIds:okIds,wait:req.slice(slots),quota:q,locked:!!rule.locked});
+      var fx=req.filter(function(l){return staffById[l.staff_id].exempt}),rq=req.filter(function(l){return !staffById[l.staff_id].exempt});
+      var slots=(q==null)?rq.length:Math.max(0,q-fixed.length);
+      var ok=fx.concat(rq.slice(0,slots)),okIds={};ok.forEach(function(l){okIds[l.staff_id]=1});
+      res.push({ds:ds,fixed:fixed,ok:ok,okIds:okIds,wait:rq.slice(slots),quota:q,locked:!!rule.locked,used:fixed.length+ok.length-fx.length});
     })(i);
   }
   return {pct:pct,res:res};
@@ -256,7 +258,7 @@ function weekHead(){
 function dayStrip(c){
   var tn=todayNum(),h='<div class="strip">';
   for(var i=0;i<7;i++){
-    var r=c.res[i],dn=week+i,used=r.fixed.length+r.ok.length,own=me?leaves.get(me.id+'|'+r.ds):null;
+    var r=c.res[i],dn=week+i,used=r.used,own=me?leaves.get(me.id+'|'+r.ds):null;
     var dot=own?'<i class="'+(own.type!=='I'?'fix':r.okIds[me.id]?'':'wait')+'"></i>':'';
     var cnt=used+'/'+r.quota;
     h+='<button class="dp'+(i===selDay?' on':'')+(dn===tn?' td':'')+(dn<tn?' past':'')+'" data-a="selday" data-i="'+i+'">'+dot+'<span>'+DS[i]+'</span><b>'+new Date(dn*864e5).getUTCDate()+'</b><em class="'+(r.quota!=null&&used>=r.quota?'full':'')+'">'+cnt+(r.locked?'🔒':'')+'</em></button>';
@@ -282,7 +284,7 @@ function weekQuotaSum(ws,ovDay,ovQ){var t=0;for(var i=0;i<7;i++){var ds=dstr(ws+
 function weekNormals(){var n=0;for(var i=0;i<7;i++){var ds=dstr(week+i);leaves.forEach(function(l){if(l.day===ds&&l.type==='I'&&staffById[l.staff_id])n++})}return n}
 function myWeekCount(){var n=0;for(var i=0;i<7;i++){var l=leaves.get(me.id+'|'+dstr(week+i));if(l&&(l.type==='I'||l.type==='M'))n++}return n}
 function dayCard(i,pct,r){
-  var dn=week+i,tn=todayNum(),past=dn<tn,isT=dn===tn,used=r.fixed.length+r.ok.length;
+  var dn=week+i,tn=todayNum(),past=dn<tn,isT=dn===tn,used=r.used;
   var h='<div class="card day">';
   h+='<div class="dh"><b>'+DAYS[i]+'</b> <span class="mute">'+dLabel(dn)+(isT?' · Bugün':'')+'</span><div class="cap'+(r.quota!=null&&used>=r.quota?' full':'')+'">'+(r.locked?'🔒 Kilitli · ':'')+('Kontenjan '+r.quota+' · dolu '+used+(r.wait.length?' · '+r.wait.length+' sırada':''))+'</div></div>';
   if(me){
@@ -352,7 +354,7 @@ function adminTab(){
   var h=weekHead()+'<div class="card"><div class="sub">Hafta kilidi</div><div class="row"><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+'</span><div class="sp"></div><button class="btn s" data-a="lockweek" data-v="1">🔒 Haftayı kilitle</button><button class="btn s" data-a="lockweek" data-v="0">Kilidi aç</button></div></div>';
   h+='<details class="card acc" id="stfbox"'+(staffOpen?' open':'')+'><summary><b>Personel, PIN ve yetki</b><span class="mute s"> · '+staff.length+' kişi</span></summary><div class="mute s" style="margin:8px 0">PIN\'ler şifreli saklanır, kimse okuyamaz. Unutan olursa "PIN belirle" ile geçici PIN verin, kişi girişte kendi PIN\'ini yeniden belirler.</div>'+staff.map(function(s){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')):'Durum yükleniyor…';
-    return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns"><button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği kaldır':'Yönetici yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button></div></div>'}).join('');
+    return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns"><button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği kaldır':'Yönetici yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button>'+(isTop(s)?'<button class="btn s star'+(s.exempt?' on':'')+'" data-a="exempt" data-id="'+s.id+'" data-v="'+(s.exempt?0:1)+'" title="Kontenjana takılmadan izin seçsin" aria-pressed="'+(s.exempt?'true':'false')+'">'+(s.exempt?'★':'☆')+'</button>':'')+'</div></div>'}).join('');
   h+='<div class="sub">Yeni personel ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik geçici PIN verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn pri" data-a="addstaff">Ekle</button><pre id="pinout" class="pinout"></pre></details>';
   h+=weekLists();
   h+='<div class="card"><div class="sub">Haftanın listesi (PDF)</div><div class="mute s" style="margin-bottom:8px">Seçili haftanın çizelgesini tek sayfa PDF yapar ve paylaşma penceresini açar. Pencerede WhatsApp\'ı seçin.</div><div class="row"><button class="btn pri" data-a="export-pdf">PDF hazırla ve gönder</button></div></div>'+
@@ -396,7 +398,7 @@ async function fetchAll(table,cols,orders){
     var r=await q.range(from,from+999);if(r.error)throw r.error;out=out.concat(r.data);if(r.data.length<1000)break;from+=1000}
   return out}
 async function loadStaff(){
-  var r=await sb.from('staff').select('id,name,active,sort').eq('active',true).order('sort').order('name');
+  var r=await sb.from('staff').select('id,name,active,sort,exempt').eq('active',true).order('sort').order('name');
   if(r.error)throw r.error;setStaff(r.data)}
 async function loadStatus(norender){
   if(!admin)return;
@@ -514,7 +516,7 @@ function download(name,text,mime){
 function csvCell(v){v=String(v==null?'':v);return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
 async function exportData(kind){
   var r=await Promise.all([
-    sb.from('staff').select('id,name,active,sort').order('sort'),
+    sb.from('staff').select('id,name,active,sort,exempt').order('sort'),
     fetchAll('leaves','staff_id,day,type,created_at',['day','staff_id']),
     sb.from('day_rules').select('day,quota,locked'),
     sb.from('log').select('at,who,action,day,detail').order('id',{ascending:true}).limit(1000)]);
@@ -621,6 +623,12 @@ async function act(a,d,el){
       if(!confirm(s1.name+' için PIN 0000 olarak sıfırlansın mı? Kişi bir sonraki girişte kendi PIN\'ini belirler.'))break;
       r=await rpc('admin_reset_pin',{p_pin:admin.pin,p_staff:+d.id,p_new:'0000'});
       if(r&&r.ok){await loadStatus();toast(r.name+' PIN\'i 0000 yapıldı')}
+      break}
+    case 'exempt':{
+      var s5=staffById[d.id],on5=d.v==='1';if(!s5)break;
+      if(!confirm(on5?s5.name+' kontenjana takılmadan izin seçebilsin mi?':s5.name+' için bu yetki kapatılsın mı?'))break;
+      r=await rpc('admin_set_exempt',{p_pin:admin.pin,p_staff:+d.id,p_on:on5});
+      if(r&&r.ok){await loadStaff();toast(on5?'★ Kontenjan dışı açıldı':'Kontenjan dışı kapatıldı')}
       break}
     case 'role':{
       var s3=staffById[d.id],mk=d.v==='1';
