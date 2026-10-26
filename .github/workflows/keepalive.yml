@@ -1,0 +1,16 @@
+# Haftada bir veritabanına küçük bir istek atar; ücretsiz Supabase projesi
+# uzun tatillerde bile duraklatılmaz. Gizli bilgi yok (anahtar zaten herkese açık).
+name: keepalive
+on:
+  schedule:
+    - cron: '17 6 * * 1,4'   # pazartesi ve perşembe 09:17 (TR)
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Supabase'e istek at
+        run: |
+          curl -fsS "https://wogswssxyfotwkeflycl.supabase.co/rest/v1/staff?select=id&limit=1" \
+            -H "apikey: sb_publishable_PbxaNErJXA0kll1lcF-Zbg_uwkW638W" > /dev/null
+          echo "tamam"
