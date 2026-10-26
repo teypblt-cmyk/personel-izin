@@ -38,6 +38,8 @@ button,select,input,textarea{font:inherit;color:var(--ink)}
 .btn:disabled{opacity:.5}
 select,input,textarea{background:var(--fld);border:1px solid var(--line);border-radius:10px;padding:9px 10px;max-width:100%}
 textarea{width:100%;min-height:100px;margin:6px 0}
+.acc>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;padding:2px 0}.acc>summary::-webkit-details-marker{display:none}.acc>summary::after{content:'▾';margin-left:auto;color:var(--mute);transition:transform .15s}.acc[open]>summary::after{transform:rotate(180deg)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{background:var(--fld);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13.5px}
 .gate{max-width:380px;margin:5vh auto 0;display:flex;flex-direction:column;align-items:center;text-align:center}
 .glogo{width:84px;height:84px;border-radius:26px;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#4f8bff,#2f56e6 60%,#6a30e6);box-shadow:0 14px 30px -10px rgba(47,86,230,.55);margin-bottom:14px}
 .gate h2{margin:0;font-size:26px;letter-spacing:-.4px}
@@ -153,7 +155,7 @@ function fmtAt(at){return new Intl.DateTimeFormat('tr-TR',{timeZone:TZ,day:'nume
 /* ---------- durum ---------- */
 var sb=null,staff=[],staffById={},leaves=new Map(),rules=new Map(),logs=[],ready=false,live=false;
 var FIRST_WEEK=Math.floor(Date.UTC(2026,8,21)/864e5);
-var me=null,admin=null,statusList=[],week=weekMon(todayNum())+7,selDay=0,tab='gun',howOpen=false,deferredPrompt=null;
+var me=null,admin=null,statusList=[],week=weekMon(todayNum())+7,selDay=0,tab='gun',howOpen=false,staffOpen=false,deferredPrompt=null;
 var rT=0,pendingRender=false;
 
 function setStaff(list){staff=list;staffById={};list.forEach(function(s){staffById[s.id]=s})}
@@ -333,13 +335,26 @@ function pctTable(c){
   return h;
 }
 
+function weekLists(){
+  var c=compute(),h='',none=[],wait=[];
+  staff.forEach(function(s){var any=false;for(var i=0;i<7;i++)if(leaves.get(s.id+'|'+dstr(week+i)))any=true;if(!any)none.push(s)});
+  for(var d=0;d<7;d++)c.res[d].wait.forEach(function(l){wait.push({d:d,l:l})});
+  h+='<div class="card"><div class="sub">Onay bekleyenler <span class="mute s">· '+wait.length+' kişi</span></div><div class="mute s" style="margin-bottom:8px">Seçti ama kontenjan dolduğu için sırada bekleyenler. '+dLabel(week)+' – '+dLabel(week+6)+'</div>';
+  if(!wait.length)h+='<div class="empty">Bekleyen yok</div>';
+  else wait.forEach(function(w){var sid=w.l.staff_id,sn=staffById[sid];h+='<div class="p"><span class="nm">'+esc(sn?sn.name:'?')+'</span><span class="mute s">'+DAYS[w.d]+' · öncelik '+c.pct[sid][w.d]+'</span></div>'});
+  h+='</div><div class="card"><div class="sub">Bu hafta izin seçmeyenler <span class="mute s">· '+none.length+' kişi</span></div><div class="mute s" style="margin-bottom:8px">Hiçbir gün seçmemiş olanlar.</div>';
+  if(!none.length)h+='<div class="empty">Herkes seçti</div>';
+  else h+='<div class="chips">'+none.map(function(s){return '<span class="chip">'+esc(s.name)+'</span>'}).join('')+'</div>';
+  return h+'</div>';
+}
 function adminTab(){
   var st={};statusList.forEach(function(x){st[x.id]=x});
-  var h='<div class="card"><div class="sub">Hafta kilidi</div><div class="row"><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+'</span><div class="sp"></div><button class="btn s" data-a="lockweek" data-v="1">🔒 Haftayı kilitle</button><button class="btn s" data-a="lockweek" data-v="0">Kilidi aç</button></div></div>';
-  h+='<div class="card"><div class="sub">Personel, PIN ve yetki</div><div class="mute s" style="margin-bottom:8px">PIN\'ler şifreli saklanır, kimse okuyamaz. Unutan olursa "PIN belirle" ile geçici PIN verin, kişi girişte kendi PIN\'ini yeniden belirler.</div>'+staff.map(function(s){
+  var h=weekHead()+'<div class="card"><div class="sub">Hafta kilidi</div><div class="row"><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+'</span><div class="sp"></div><button class="btn s" data-a="lockweek" data-v="1">🔒 Haftayı kilitle</button><button class="btn s" data-a="lockweek" data-v="0">Kilidi aç</button></div></div>';
+  h+='<details class="card acc" id="stfbox"'+(staffOpen?' open':'')+'><summary><b>Personel, PIN ve yetki</b><span class="mute s"> · '+staff.length+' kişi</span></summary><div class="mute s" style="margin:8px 0">PIN\'ler şifreli saklanır, kimse okuyamaz. Unutan olursa "PIN belirle" ile geçici PIN verin, kişi girişte kendi PIN\'ini yeniden belirler.</div>'+staff.map(function(s){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')):'Durum yükleniyor…';
     return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns"><button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği kaldır':'Yönetici yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button></div></div>'}).join('');
-  h+='<div class="sub">Yeni personel ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik geçici PIN verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn pri" data-a="addstaff">Ekle</button><pre id="pinout" class="pinout"></pre></div>';
+  h+='<div class="sub">Yeni personel ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik geçici PIN verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn pri" data-a="addstaff">Ekle</button><pre id="pinout" class="pinout"></pre></details>';
+  h+=weekLists();
   h+='<div class="card"><div class="sub">Haftanın listesi (PDF)</div><div class="mute s" style="margin-bottom:8px">Seçili haftanın çizelgesini tek sayfa PDF yapar ve paylaşma penceresini açar. Pencerede WhatsApp\'ı seçin.</div><div class="row"><button class="btn pri" data-a="export-pdf">PDF hazırla ve gönder</button></div></div>'+
   '<div class="card"><div class="sub">Yedek</div><div class="mute s" style="margin-bottom:8px">Tüm izin kayıtlarını telefonunuza ya da bilgisayarınıza indirir. PIN\'ler dahil değildir.</div><div class="row"><button class="btn" data-a="export-csv">Excel için (CSV)</button><button class="btn" data-a="export-json">Tam yedek (JSON)</button></div></div>';
   if(admin&&admin.viaStaff)h+='<div class="card"><div class="sub">Yönetici</div><div class="mute s">Yönetici yetkiniz kendi PIN\'inizle açıldı. Kapatmak için sayfanın üstünden çıkış yapın.</div></div>';
@@ -372,7 +387,7 @@ function scheduleRender(){
     renderMain()},60);
 }
 document.addEventListener('focusout',function(){if(pendingRender){pendingRender=false;setTimeout(scheduleRender,250)}});
-document.addEventListener('toggle',function(e){var t=e.target;if(t&&t.id==='how')howOpen=t.open},true);
+document.addEventListener('toggle',function(e){var t=e.target;if(t&&t.id==='how')howOpen=t.open;if(t&&t.id==='stfbox')staffOpen=t.open},true);
 
 /* ---------- veri ---------- */
 async function fetchAll(table,cols,orders){
