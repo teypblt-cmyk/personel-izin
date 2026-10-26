@@ -303,7 +303,7 @@ function dayCard(i,pct,r){
   r.ok.forEach(function(l){h+=row(l,'ok',i,pct)});
   if(r.wait.length){h+='<div class="sep">Kontenjan doldu, sırada bekleyenler</div>';r.wait.forEach(function(l){h+=row(l,'wait',i,pct)})}
   if(admin){
-    h+='<div class="adm"><div class="qc"><span class="s mute">Kontenjan</span><button class="btn s" data-a="quota" data-day="'+r.ds+'" data-d="-1">−</button><b>'+r.quota+'</b><button class="btn s" data-a="quota" data-day="'+r.ds+'" data-d="1">+</button><button class="btn s" data-a="quota-inf" data-day="'+r.ds+'">Otomatik</button></div><button class="btn s" data-a="lock" data-day="'+r.ds+'" data-v="'+(r.locked?0:1)+'">'+(r.locked?'Kilidi aç':'🔒 Kilitle')+'</button></div>';
+    h+='<div class="adm"><div class="qc"><span class="s mute">Kontenjan</span><button class="btn s" data-a="quota" data-day="'+r.ds+'" data-d="-1">−</button><b>'+r.quota+'</b><button class="btn s" data-a="quota" data-day="'+r.ds+'" data-d="1">+</button><button class="btn s" data-a="assign" data-day="'+r.ds+'" title="Onay bekleyenleri boş günlere ata"'+(r.wait.length?'':' disabled')+'>Ata'+(r.wait.length?' ('+r.wait.length+')':'')+'</button></div><button class="btn s" data-a="lock" data-day="'+r.ds+'" data-v="'+(r.locked?0:1)+'">'+(r.locked?'Kilidi aç':'🔒 Kilitle')+'</button></div>';
     var avail=staff.filter(function(s){return !leaves.has(s.id+'|'+r.ds)});
     h+='<details style="margin-top:8px"><summary class="s mute">+ Kişi ekle (mazeretli, yıllık, rapor)</summary><div class="add"><select id="ap-'+i+'"><option value="">Kişi seçin…</option>'+avail.map(function(s){return '<option value="'+s.id+'">'+esc(s.name)+'</option>'}).join('')+'</select><select id="at-'+i+'"><option value="M">⭐ Mazeretli</option><option value="Y">Yıllık</option><option value="R">Rapor</option><option value="I">Normal</option></select><button class="btn s pri" data-a="addrow" data-day="'+r.ds+'" data-i="'+i+'">Ekle</button></div></details>';
   }
@@ -451,6 +451,21 @@ function setLocal(staffId,day,type){
 function saveMe(){try{if(me)localStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));else localStorage.removeItem('izin_me')}catch(e){}}
 function saveAdm(){try{if(admin&&!admin.viaStaff)sessionStorage.setItem('izin_adm',admin.pin);else sessionStorage.removeItem('izin_adm')}catch(e){}}
 
+function planAssign(ds){
+  var c=compute(),i=dnum(ds)-week;if(i<0||i>6)return {moves:[],stuck:[]};
+  var tn=todayNum(),free=[];
+  for(var j=0;j<7;j++){var rj=c.res[j];free[j]=(j===i||week+j<tn||rj.locked)?0:Math.max(0,rj.quota-rj.used)}
+  var moves=[],stuck=[];
+  c.res[i].wait.forEach(function(l){
+    var sid=l.staff_id,best=-1;
+    for(var j=0;j<7;j++){
+      if(free[j]<=0||leaves.get(sid+'|'+dstr(week+j)))continue;
+      if(best<0||c.pct[sid][j]>c.pct[sid][best])best=j;
+    }
+    if(best<0)stuck.push(sid);else{free[best]--;moves.push({sid:sid,from:ds,to:dstr(week+best),toI:best})}
+  });
+  return {moves:moves,stuck:stuck};
+}
 function loadScript(src){return new Promise(function(ok,no){var e=document.createElement('script');e.src=src;e.onload=ok;e.onerror=function(){no(new Error('yüklenemedi'))};document.head.appendChild(e)})}
 function pdfHtml(c){
   var n=staff.length||1,rh=Math.max(22,Math.min(32,Math.floor(540/n))),fs=rh>=28?15:13;
@@ -570,6 +585,22 @@ async function act(a,d,el){
       if(r&&r.ok){admin={pin:ap};saveAdm();renderAll();toast('Yönetici modu açıldı');loadStatus()}
       break}
     case 'adm-out':admin=null;saveAdm();if(tab==='yon')tab='gun';renderAll();return;
+    case 'assign':{
+      var pl=planAssign(d.day);
+      if(!pl.moves.length){toast(pl.stuck.length?'Boş gün bulunamadı, bekleyenler yerinde kaldı':'Bu günde bekleyen yok',1);break}
+      var msg=pl.moves.map(function(m){return staffById[m.sid].name+' → '+DAYS[m.toI]}).join('\n');
+      if(pl.stuck.length)msg+='\n\nBoş gün bulunamayan: '+pl.stuck.map(function(x){return staffById[x].name}).join(', ');
+      if(!confirm('Bekleyenler boş günlere atansın mı?\n\n'+msg))break;
+      var done=0;
+      for(var q=0;q<pl.moves.length;q++){
+        var mv=pl.moves[q];
+        var r1=await rpc('admin_set_leave',{p_pin:admin.pin,p_staff:mv.sid,p_day:mv.to,p_type:'I'});
+        if(!(r1&&r1.ok))break;
+        var r2=await rpc('admin_set_leave',{p_pin:admin.pin,p_staff:mv.sid,p_day:mv.from,p_type:null});
+        setLocal(mv.sid,mv.to,'I');if(r2&&r2.ok)setLocal(mv.sid,mv.from,null);done++;
+      }
+      toast(done+' kişi boş güne atandı');
+      break}
     case 'quota':case 'quota-inf':{
       var rule=rules.get(d.day)||{},cur=rule.quota,nq=null;
       if(a==='quota'){
