@@ -38,6 +38,7 @@ button,select,input,textarea{font:inherit;color:var(--ink)}
 .btn:disabled{opacity:.5}
 select,input,textarea{background:var(--fld);border:1px solid var(--line);border-radius:10px;padding:9px 10px;max-width:100%}
 textarea{width:100%;min-height:100px;margin:6px 0}
+.gate{max-width:380px;margin:8vh auto 0;text-align:center;display:flex;flex-direction:column;gap:10px}.gate h1{margin:0;font-size:22px}.gate .gi{font-size:44px;line-height:1}.gate select,.gate input{width:100%;box-sizing:border-box;text-align:center}.gate .btn.big{width:100%}.gate details{text-align:left}
 .login{display:flex;gap:8px;flex-wrap:wrap}.login select{flex:2 1 150px}.login input{flex:1 1 80px;min-width:80px}
 details>summary{cursor:pointer;padding:2px 0}
 #auth{padding:10px 12px}
@@ -189,8 +190,19 @@ function compute(){
 }
 
 /* ---------- ekran ---------- */
+function gateHtml(){
+  var prev=$('who')?$('who').value:'';
+  return '<div class="card gate"><div class="gi">🗓️</div><h1>Personel İzin</h1><div class="mute" style="margin-bottom:14px">Devam etmek için adınızı seçin ve PIN\'inizi girin.</div>'+
+  '<select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>'+
+  '<input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN">'+
+  '<button class="btn pri big" data-a="login">Giriş yap</button>'+
+  '<div class="mute s" style="margin-top:12px">İlk girişte size verilen geçici PIN\'i yazın, ardından kendi PIN\'inizi belirlersiniz.</div>'+
+  '<details style="margin-top:12px"><summary class="mute s">Yönetici girişi</summary><div class="login" style="margin-top:8px"><input id="apin" type="password" inputmode="numeric" autocomplete="off" placeholder="Yönetici PIN"><button class="btn" data-a="adm-in">Giriş</button></div></details></div>';
+}
 function renderAuth(){
   var el=$('auth'),prev=$('who')?$('who').value:'',h='';
+  if(!me&&!admin){el.style.display='none';el.innerHTML='';return}
+  el.style.display='';
   if(me){
     h+='<div class="row"><div><b>'+esc(me.name)+'</b> <span class="mute s">giriş yapıldı</span></div><div class="sp"></div><button class="btn s" data-a="pinchg">PIN</button><button class="btn s" data-a="logout">Çıkış</button></div>';
   }else{
@@ -217,6 +229,8 @@ function renderInstall(){
 }
 
 function renderNav(){
+  if(!me&&!admin){$('nav').style.display='none';$('nav').innerHTML='';return}
+  $('nav').style.display='';
   var tabs=[['gun','📅','Günler'],['yuzde','📊','Öncelik']];
   if(admin)tabs.push(['yon','🛠','Yönetici']);
   $('nav').innerHTML=tabs.map(function(t){return '<button data-a="tab" data-t="'+t[0]+'" class="'+(tab===t[0]?'on':'')+'"><i>'+t[1]+'</i>'+t[2]+'</button>'}).join('');
@@ -327,6 +341,7 @@ function renderMain(){
   if(week>maxWeek())week=maxWeek();
   if(!ready){el.innerHTML='<div class="card empty">Yükleniyor…</div>';return}
   if(tab==='yon'&&!admin)tab='gun';
+  if(!me&&!admin){el.innerHTML=gateHtml();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
   var h='';
   if(tab==='gun'){var c=compute();h=weekHead()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])}
