@@ -88,6 +88,10 @@ table.pt{border-collapse:collapse;width:100%;font-size:13.5px}
 .pinout:empty{display:none}
 .adminbar{background:var(--fixbg);color:var(--fix);border-radius:10px;padding:8px 10px;margin-top:8px}
 .inst{border-color:var(--pri)}
+.stf{align-items:flex-start;flex-wrap:wrap;padding:9px 10px}
+.stf .nm2{flex:1 1 170px;min-width:0}
+.stf .nm2 .s{margin-top:2px}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
 #err{display:none;background:var(--waitbg);color:var(--wait);border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:14px}
 #toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);max-width:92vw;background:#14213d;color:#fff;padding:10px 16px;border-radius:12px;opacity:0;pointer-events:none;transition:.2s;font-size:14px;z-index:9}
 #toast.show{opacity:1;transform:translate(-50%,0)}#toast.bad{background:#c0344b}
@@ -136,7 +140,7 @@ function fmtAt(at){return new Intl.DateTimeFormat('tr-TR',{timeZone:TZ,day:'nume
 
 /* ---------- durum ---------- */
 var sb=null,staff=[],staffById={},leaves=new Map(),rules=new Map(),logs=[],ready=false,live=false;
-var me=null,admin=null,week=weekMon(todayNum()),selDay=wdOf(todayNum()),tab='gun',howOpen=false,deferredPrompt=null;
+var me=null,admin=null,statusList=[],week=weekMon(todayNum()),selDay=wdOf(todayNum()),tab='gun',howOpen=false,deferredPrompt=null;
 var rT=0,pendingRender=false;
 
 function setStaff(list){staff=list;staffById={};list.forEach(function(s){staffById[s.id]=s})}
@@ -192,7 +196,7 @@ function renderAuth(){
     h+='<div class="login"><select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN"><button class="btn pri" data-a="login">Giriş</button></div>';
   }
   if(admin){
-    h+='<div class="row adminbar"><b>🛠 Yönetici modu açık</b></div>';
+    h+='<div class="row adminbar"><b>🛠 '+(admin.viaStaff?'Yönetici yetkiniz açık':'Yönetici modu açık')+'</b></div>';
   }else{
     h+='<details style="margin-top:8px"><summary class="mute s">Yönetici girişi</summary><div class="login" style="margin-top:8px"><input id="apin" type="password" inputmode="numeric" autocomplete="off" placeholder="Yönetici PIN"><button class="btn" data-a="adm-in">Giriş</button></div></details>';
   }
@@ -296,18 +300,25 @@ function pctTable(c){
 }
 
 function adminTab(){
+  var st={};statusList.forEach(function(x){st[x.id]=x});
   var h='<div class="card"><div class="sub">Hafta kilidi</div><div class="row"><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+'</span><div class="sp"></div><button class="btn s" data-a="lockweek" data-v="1">🔒 Haftayı kilitle</button><button class="btn s" data-a="lockweek" data-v="0">Kilidi aç</button></div></div>';
-  h+='<div class="card"><div class="sub">Personel ve PIN</div>'+staff.map(function(s){return '<div class="p"><span class="nm">'+esc(s.name)+'</span><button class="btn s" data-a="resetpin" data-id="'+s.id+'">PIN sıfırla</button><button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button></div>'}).join('');
-  h+='<div class="sub">Yeni personel ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn pri" data-a="addstaff">Ekle</button><pre id="pinout" class="pinout"></pre></div>';
+  h+='<div class="card"><div class="sub">Personel, PIN ve yetki</div><div class="mute s" style="margin-bottom:8px">PIN\'ler şifreli saklanır, kimse okuyamaz. Unutan olursa "PIN belirle" ile geçici PIN verin, kişi girişte kendi PIN\'ini yeniden belirler.</div>'+staff.map(function(s){
+    var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')):'Durum yükleniyor…';
+    return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns"><button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN belirle</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği kaldır':'Yönetici yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button></div></div>'}).join('');
+  h+='<div class="sub">Yeni personel ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik geçici PIN verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn pri" data-a="addstaff">Ekle</button><pre id="pinout" class="pinout"></pre></div>';
   h+='<div class="card"><div class="sub">Yedek</div><div class="mute s" style="margin-bottom:8px">Tüm izin kayıtlarını telefonunuza ya da bilgisayarınıza indirir. PIN\'ler dahil değildir.</div><div class="row"><button class="btn" data-a="export-csv">Excel için (CSV)</button><button class="btn" data-a="export-json">Tam yedek (JSON)</button></div></div>';
-  h+='<div class="card"><div class="sub">Yönetici</div><div class="row"><button class="btn" data-a="adm-pinchg">Yönetici PIN\'ini değiştir</button><button class="btn out" data-a="adm-out">Yönetici modunu kapat</button></div></div>';
+  if(admin&&admin.viaStaff)h+='<div class="card"><div class="sub">Yönetici</div><div class="mute s">Yönetici yetkiniz kendi PIN\'inizle açıldı. Kapatmak için sayfanın üstünden çıkış yapın.</div></div>';
+  else h+='<div class="card"><div class="sub">Ortak yönetici PIN</div><div class="row"><button class="btn" data-a="adm-pinchg">Ortak PIN\'i değiştir</button><button class="btn out" data-a="adm-out">Yönetici modunu kapat</button></div></div>';
   return h;
 }
-
+function pinSetup(){
+  return '<div class="card"><div class="sub">Kendi PIN\'inizi belirleyin</div><div class="mute s" style="margin-bottom:10px">İlk girişte size verilen PIN geçicidir. Başkasının bilmediği, 4-8 rakamdan oluşan kendi PIN\'inizi seçin. Bundan sonra bunu kullanacaksınız.</div><div class="login"><input id="np1" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="Yeni PIN"><input id="np2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="Yeni PIN (tekrar)"></div><button class="btn pri big" style="margin-top:10px" data-a="setpin">PIN\'imi kaydet</button></div>';
+}
 function renderMain(){
   var el=$('main');
   if(!ready){el.innerHTML='<div class="card empty">Yükleniyor…</div>';return}
   if(tab==='yon'&&!admin)tab='gun';
+  if(me&&me.mustChange){el.innerHTML=pinSetup();return}
   var h='';
   if(tab==='gun'){var c=compute();h=weekHead()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])}
   else if(tab==='yuzde'){h=weekHead()+pctTable(compute())}
@@ -334,6 +345,11 @@ async function fetchAll(table,cols,orders){
 async function loadStaff(){
   var r=await sb.from('staff').select('id,name,active,sort').eq('active',true).order('sort').order('name');
   if(r.error)throw r.error;setStaff(r.data)}
+async function loadStatus(norender){
+  if(!admin)return;
+  var r=await rpc('admin_staff_status',{p_pin:admin.pin},true);
+  if(r&&r.ok){statusList=r.list;if(!norender&&tab==='yon')scheduleRender()}
+}
 async function loadAll(){
   try{
     var r=await Promise.all([
@@ -346,6 +362,7 @@ async function loadAll(){
     rules=new Map();r[2].data.forEach(function(x){rules.set(x.day,x)});
     logs=r[3].data;ready=true;setErr('');
     if(me&&!staffById[me.id]){me=null}
+    if(!me&&admin&&admin.viaStaff)admin=null;
     var a=document.activeElement;
     if(a&&a.closest&&a.closest('#main')&&/^(SELECT|INPUT|TEXTAREA)$/.test(a.tagName)){pendingRender=true}else renderAll();
   }catch(e){setErr('Sunucuya ulaşılamadı, yeniden deniyorum… ('+(e.message||e)+')')}
@@ -376,7 +393,7 @@ function setLocal(staffId,day,type){
   if(!type)leaves.delete(staffId+'|'+day);
   else{var k=staffId+'|'+day,o=leaves.get(k);leaves.set(k,{staff_id:staffId,day:day,type:type,created_at:o?o.created_at:new Date().toISOString()})}}
 function saveMe(){try{if(me)localStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));else localStorage.removeItem('izin_me')}catch(e){}}
-function saveAdm(){try{if(admin)sessionStorage.setItem('izin_adm',admin.pin);else sessionStorage.removeItem('izin_adm')}catch(e){}}
+function saveAdm(){try{if(admin&&!admin.viaStaff)sessionStorage.setItem('izin_adm',admin.pin);else sessionStorage.removeItem('izin_adm')}catch(e){}}
 
 function download(name,text,mime){
   var b=new Blob([text],{type:mime}),a=document.createElement('a');
@@ -408,7 +425,7 @@ async function act(a,d,el){
   if(el&&el.tagName==='BUTTON')el.disabled=true;
   var r,x;
   switch(a){
-    case 'tab':tab=d.t;renderNav();renderMain();window.scrollTo(0,0);return;
+    case 'tab':tab=d.t;renderNav();renderMain();if(tab==='yon')loadStatus();window.scrollTo(0,0);return;
     case 'selday':selDay=+d.i;renderMain();return;
     case 'prev':week-=7;renderMain();return;
     case 'next':week+=7;renderMain();return;
@@ -419,13 +436,13 @@ async function act(a,d,el){
       var id=+$('who').value,pin=($('pin').value||'').trim();
       if(!id||!pin){toast('Adınızı seçip PIN girin',1);break}
       r=await rpc('staff_login',{p_staff:id,p_pin:pin});
-      if(r&&r.ok){me={id:id,pin:pin,name:r.name};saveMe();renderAuth();renderMain();toast('Hoş geldiniz '+r.name)}
+      if(r&&r.ok){me={id:id,pin:pin,name:r.name,mustChange:!!r.must_change};if(r.admin)admin={pin:id+':'+pin,viaStaff:true};saveMe();renderAll();toast('Hoş geldiniz '+r.name);if(admin)loadStatus()}
       break}
-    case 'logout':me=null;saveMe();renderAuth();renderMain();return;
+    case 'logout':me=null;if(admin&&admin.viaStaff)admin=null;if(tab==='yon')tab='gun';saveMe();renderAll();return;
     case 'pinchg':{
       var o=prompt('Eski PIN');if(o===null)break;var n=prompt('Yeni PIN (4-8 rakam)');if(n===null)break;
       r=await rpc('staff_change_pin',{p_staff:me.id,p_old:o.trim(),p_new:n.trim()});
-      if(r&&r.ok){me.pin=n.trim();saveMe();toast('PIN değiştirildi')}
+      if(r&&r.ok){me.pin=n.trim();if(admin&&admin.viaStaff)admin.pin=me.id+':'+me.pin;saveMe();toast('PIN değiştirildi')}
       break}
     case 'toggle':{
       var on=d.on==='1';
@@ -435,7 +452,7 @@ async function act(a,d,el){
     case 'adm-in':{
       var ap=($('apin').value||'').trim();if(!ap){toast('Yönetici PIN girin',1);break}
       r=await rpc('admin_login',{p_pin:ap});
-      if(r&&r.ok){admin={pin:ap};saveAdm();renderAll();toast('Yönetici modu açıldı')}
+      if(r&&r.ok){admin={pin:ap};saveAdm();renderAll();toast('Yönetici modu açıldı');loadStatus()}
       break}
     case 'adm-out':admin=null;saveAdm();if(tab==='yon')tab='gun';renderAll();return;
     case 'quota':case 'quota-inf':{
@@ -477,18 +494,33 @@ async function act(a,d,el){
         x=await rpc('admin_add_staff',{p_pin:admin.pin,p_name:nm,p_staff_pin:pp||null},true);
         out.push(x&&x.ok?x.name+': '+x.pin:nm+': HATA - '+((x&&x.error)||'bağlantı'));
       }
-      await loadStaff();renderAuth();renderMain();
+      await loadStaff();await loadStatus(true);renderAuth();renderMain();
       var po=$('pinout');if(po)po.textContent=out.join('\n');
       return}
-    case 'resetpin':{
-      var s1=staffById[d.id];if(!s1||!confirm(s1.name+' için yeni PIN verilsin mi?'))break;
-      r=await rpc('admin_reset_pin',{p_pin:admin.pin,p_staff:+d.id});
-      if(r&&r.ok)alert(r.name+' yeni PIN: '+r.pin);
+    case 'setpin':{
+      var a1=($('np1').value||'').trim(),a2=($('np2').value||'').trim();
+      if(!/^[0-9]{4,8}$/.test(a1)){toast('PIN 4-8 rakam olmalı',1);break}
+      if(a1!==a2){toast('İki PIN aynı değil',1);break}
+      r=await rpc('staff_change_pin',{p_staff:me.id,p_old:me.pin,p_new:a1});
+      if(r&&r.ok){me.pin=a1;me.mustChange=false;if(admin&&admin.viaStaff)admin.pin=me.id+':'+a1;saveMe();renderAll();toast('PIN kaydedildi')}
+      break}
+    case 'setpinfor':{
+      var s1=staffById[d.id];if(!s1)break;
+      var np0=prompt(s1.name+' için geçici PIN yazın (4-8 rakam). Boş bırakırsanız otomatik verilir.');
+      if(np0===null)break;
+      r=await rpc('admin_reset_pin',{p_pin:admin.pin,p_staff:+d.id,p_new:(np0.trim()||null)});
+      if(r&&r.ok){alert(r.name+' geçici PIN: '+r.pin+'\nKişi ilk girişte kendi PIN\'ini belirleyecek.');await loadStatus()}
+      break}
+    case 'role':{
+      var s3=staffById[d.id],mk=d.v==='1';
+      if(!s3||!confirm(s3.name+(mk?' yönetici yapılsın mı? Kendi PIN\'iyle girince yönetici paneli açılır.':' için yöneticilik kaldırılsın mı?')))break;
+      r=await rpc('admin_set_role',{p_pin:admin.pin,p_staff:+d.id,p_admin:mk});
+      if(r&&r.ok){await loadStatus();toast(mk?'Yönetici yapıldı':'Yöneticilik kaldırıldı')}
       break}
     case 'deact':{
       var s2=staffById[d.id];if(!s2||!confirm(s2.name+' listeden çıkarılsın mı? Geçmiş kayıtları saklanır.'))break;
       r=await rpc('admin_set_active',{p_pin:admin.pin,p_staff:+d.id,p_active:false});
-      if(r&&r.ok){await loadStaff();renderAll()}
+      if(r&&r.ok){await loadStaff();await loadStatus(true);renderAll()}
       break}
     case 'adm-pinchg':{
       var op=prompt('Eski yönetici PIN');if(op===null)break;var np=prompt('Yeni yönetici PIN (4-12 rakam)');if(np===null)break;
@@ -512,7 +544,8 @@ document.addEventListener('change',function(e){
 document.addEventListener('keydown',function(e){
   if(e.key!=='Enter')return;
   if(e.target.id==='pin'){e.preventDefault();run('login',{},null)}
-  else if(e.target.id==='apin'){e.preventDefault();run('adm-in',{},null)}});
+  else if(e.target.id==='apin'){e.preventDefault();run('adm-in',{},null)}
+  else if(e.target.id==='np1'||e.target.id==='np2'){e.preventDefault();run('setpin',{},null)}});
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;renderInstall()});
 
 /* ---------- başlangıç ---------- */
@@ -524,9 +557,12 @@ async function init(){
   try{sm=JSON.parse(localStorage.getItem('izin_me')||'null')}catch(e){}
   try{sa=sessionStorage.getItem('izin_adm')}catch(e){}
   await loadAll();
-  if(sm&&sm.id&&sm.pin){var r=await rpc('staff_login',{p_staff:sm.id,p_pin:sm.pin},true);if(r&&r.ok)me={id:sm.id,pin:sm.pin,name:r.name};else if(r){me=null;saveMe()}}
-  if(sa){var r2=await rpc('admin_login',{p_pin:sa},true);if(r2&&r2.ok)admin={pin:sa};else if(r2){admin=null;saveAdm()}}
+  if(sm&&sm.id&&sm.pin){var r=await rpc('staff_login',{p_staff:sm.id,p_pin:sm.pin},true);
+    if(r&&r.ok){me={id:sm.id,pin:sm.pin,name:r.name,mustChange:!!r.must_change};if(r.admin)admin={pin:sm.id+':'+sm.pin,viaStaff:true}}
+    else if(r){me=null;saveMe()}}
+  if(sa&&!admin){var r2=await rpc('admin_login',{p_pin:sa},true);if(r2&&r2.ok)admin={pin:sa};else if(r2){admin=null;saveAdm()}}
   renderAll();
+  if(admin)loadStatus();
   subscribe();poll();
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')loadAll()});
 }
