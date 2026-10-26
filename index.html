@@ -224,7 +224,7 @@ function renderNav(){
 
 function weekHead(){
   var tn=todayNum(),isCur=weekMon(tn)===week;
-  return '<div class="wk"><button class="btn" data-a="prev" aria-label="Önceki hafta"'+(week<=FIRST_WEEK?' disabled':'')+'>‹</button><div class="wt"><b>'+dLabel(week)+' – '+dLabel(week+6)+'</b><small>'+(isCur?'Bu hafta · <a href="#" data-a="next">Gelecek haftaya geç</a>':week>weekMon(tn)?'Gelecek hafta · <a href="#" data-a="today">Bu haftaya dön</a>':'<a href="#" data-a="today">Bu haftaya dön</a>')+'</small></div><button class="btn" data-a="next" aria-label="Sonraki hafta"'+(week>=weekMon(todayNum())+7?' disabled':'')+'>›</button></div>';
+  return '<div class="wk"><button class="btn" data-a="prev" aria-label="Önceki hafta"'+(week<=FIRST_WEEK?' disabled':'')+'>‹</button><div class="wt"><b>'+dLabel(week)+' – '+dLabel(week+6)+'</b><small>'+(isCur?'Bu hafta · <a href="#" data-a="next">Gelecek haftaya geç</a>':week>weekMon(tn)?(week>weekMon(tn)+7?'İleri hafta (tahmin) · ':'Gelecek hafta · ')+'<a href="#" data-a="today">Bu haftaya dön</a>':'<a href="#" data-a="today">Bu haftaya dön</a>')+'</small></div><button class="btn" data-a="next" aria-label="Sonraki hafta"'+(week>=maxWeek()?' disabled':'')+'>›</button></div>';
 }
 
 function dayStrip(c){
@@ -321,8 +321,10 @@ function adminTab(){
 function pinSetup(){
   return '<div class="card"><div class="sub">Kendi PIN\'inizi belirleyin</div><div class="mute s" style="margin-bottom:10px">İlk girişte size verilen PIN geçicidir. Başkasının bilmediği, 4-8 rakamdan oluşan kendi PIN\'inizi seçin. Bundan sonra bunu kullanacaksınız.</div><div class="login"><input id="np1" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="Yeni PIN"><input id="np2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="Yeni PIN (tekrar)"></div><button class="btn pri big" style="margin-top:10px" data-a="setpin">PIN\'imi kaydet</button></div>';
 }
+function maxWeek(){return weekMon(todayNum())+(admin?7*52:7)}
 function renderMain(){
   var el=$('main');
+  if(week>maxWeek())week=maxWeek();
   if(!ready){el.innerHTML='<div class="card empty">Yükleniyor…</div>';return}
   if(tab==='yon'&&!admin)tab='gun';
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
@@ -493,7 +495,7 @@ async function act(a,d,el){
     case 'tab':tab=d.t;renderNav();renderMain();if(tab==='yon')loadStatus();window.scrollTo(0,0);return;
     case 'selday':selDay=+d.i;renderMain();return;
     case 'prev':if(week<=FIRST_WEEK)return;week-=7;renderMain();return;
-    case 'next':if(week>=weekMon(todayNum())+7)return;week+=7;renderMain();return;
+    case 'next':if(week>=maxWeek())return;week+=7;renderMain();return;
     case 'today':week=weekMon(todayNum());selDay=wdOf(todayNum());renderMain();return;
     case 'install':{if(deferredPrompt){deferredPrompt.prompt();try{await deferredPrompt.userChoice}catch(e){}deferredPrompt=null;renderInstall()}return}
     case 'inst-x':try{localStorage.setItem('izin_inst','1')}catch(e){}renderInstall();return;
