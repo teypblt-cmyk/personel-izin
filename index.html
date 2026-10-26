@@ -250,7 +250,7 @@ function row(l,st,i,pct){
 }
 
 var MAXW=2;
-function myWeekCount(){var n=0;for(var i=0;i<7;i++){var l=leaves.get(me.id+'|'+dstr(week+i));if(l&&l.type==='I')n++}return n}
+function myWeekCount(){var n=0;for(var i=0;i<7;i++){var l=leaves.get(me.id+'|'+dstr(week+i));if(l&&(l.type==='I'||l.type==='M'))n++}return n}
 function dayCard(i,pct,r){
   var dn=week+i,tn=todayNum(),past=dn<tn,isT=dn===tn,used=r.fixed.length+r.ok.length;
   var h='<div class="card day">';
