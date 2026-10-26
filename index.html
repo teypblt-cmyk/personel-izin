@@ -205,7 +205,7 @@ function gateHtml(){
   var prev=$('who')?$('who').value:'';
   var logo='<svg viewBox="0 0 64 64" width="44" height="44" aria-hidden="true"><rect x="8" y="12" width="48" height="44" rx="10" fill="#fff" fill-opacity=".95"/><rect x="8" y="12" width="48" height="14" rx="10" fill="#fff" fill-opacity=".55"/><rect x="19" y="5" width="6" height="14" rx="3" fill="#fff"/><rect x="39" y="5" width="6" height="14" rx="3" fill="#fff"/><path d="M21 40l8 8 15-17" fill="none" stroke="#2f6bff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   return '<div class="gate"><div class="glogo">'+logo+'</div><h2>Personel İzin</h2><p class="gsub">Haftalık izin seçimi</p>'+
-  '<div class="gcard"><label class="gl" for="who">Adınız</label><select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>'+
+  '<div class="gcard"><label class="gl" for="who">Adınız</label><select id="who"><option value="">Adınızı seçin…</option>'+staff.slice().sort(function(a,b){return a.name.localeCompare(b.name,'tr')}).map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>'+
   '<label class="gl" for="pin">PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="• • • •">'+
   '<button class="btn pri big" data-a="login">Giriş yap</button>'+
   '<div class="ghint">İlk girişte size verilen geçici PIN\'i yazın.<br>Ardından kendi PIN\'inizi belirlersiniz.</div></div>'+
@@ -273,6 +273,8 @@ function row(l,st,i,pct){
   return '<div class="p'+(mine?' me':'')+'"><span class="nm">'+esc(s.name)+'</span>'+tag+pc+ctl+'</div>';
 }
 
+var TOPNAMES=['Nilgün Gül'];
+function isTop(st){return TOPNAMES.indexOf(st.name)>=0}
 var MAXW=2,WEEKCAP=36,DEFQ=[5,4,5,5,5,6,6];
 function weekQuotaSum(ws,ovDay,ovQ){var t=0;for(var i=0;i<7;i++){var ds=dstr(ws+i),rl=rules.get(ds)||{},q=(rl.quota!=null)?rl.quota:DEFQ[i];if(ds===ovDay)q=ovQ;t+=q}return t}
 function weekNormals(){var n=0;for(var i=0;i<7;i++){var ds=dstr(week+i);leaves.forEach(function(l){if(l.day===ds&&l.type==='I'&&staffById[l.staff_id])n++})}return n}
@@ -316,6 +318,7 @@ function pctTable(c){
   for(var d=0;d<7;d++)h+='<th>'+DS[d]+'<small>'+dShort(week+d)+'</small></th>';
   h+='</tr>';
   staff.forEach(function(s){
+    if(isTop(s))return;
     h+='<tr class="'+(me&&me.id===s.id?'me':'')+'"><td class="n">'+esc(s.name)+'</td>';
     for(var d=0;d<7;d++){
       var l=leaves.get(s.id+'|'+dstr(week+d)),v=c.pct[s.id][d],mk='';
@@ -439,7 +442,8 @@ function pdfHtml(c){
   h+='<table style="border-collapse:collapse;table-layout:fixed;width:100%;font-size:'+fs+'px"><tr><th style="'+th+';text-align:left;padding-left:10px;border-left:0;width:230px">Personel</th>';
   for(var d=0;d<7;d++){var r0=c.res[d];h+='<th style="'+th+'">'+DAYS[d]+'<div style="font-weight:400;font-size:11px;opacity:.85">'+dLabel(week+d)+'</div></th>'}
   h+='</tr>';
-  staff.forEach(function(st,k){
+  var plist=staff.filter(isTop).concat(staff.filter(function(x){return !isTop(x)}));
+  plist.forEach(function(st,k){
     var bg=k%2?'#f4f6fa':'#fff';
     h+='<tr style="height:'+rh+'px;background:'+bg+'"><td style="padding:0 10px;font-weight:600;border-bottom:1px solid #e1e6ee">'+esc(st.name)+'</td>';
     for(var d=0;d<7;d++){
@@ -660,7 +664,7 @@ async function init(){
   subscribe();poll();
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')loadAll()});
 }
-window.__izin={compute:compute,setWeek:function(n){week=n},setSel:function(i){selDay=i},render:renderAll};
+window.__izin={pdfHtml:pdfHtml,compute:compute,setWeek:function(n){week=n},setSel:function(i){selDay=i},render:renderAll};
 init();
 })();
 </script>
