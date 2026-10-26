@@ -153,11 +153,11 @@ function cmp(a,b){var L=Math.max(a.length,b.length);for(var i=0;i<L;i++){var x=i
 function pcCol(v){v=Math.max(0,Math.min(100,v));var h=v<50?v/50*28:v<75?40+(v-50)/25*38:100+(v-75)/25*42,l=v<50?44:v<75?48:40;return {bg:'hsl('+Math.round(h)+',78%,'+l+'%)',fg:(h>=36&&h<=92)?'#1f1a00':'#fff'}}
 function pcChip(v,mk){var c=pcCol(v);return '<i class="pc'+(mk?' mk':'')+'" style="background:'+c.bg+';color:'+c.fg+'">'+v+'</i>'}
 
-/* Yüzde yalnızca görüntülenen haftadan ÖNCEKİ geçmişe bakar (yalnızca 'I' türü).
-   Mazeretli (M), yıllık (Y) ve rapor (R) geçmişe sayılmaz. */
+/* Yüzde yalnızca görüntülenen haftadan ÖNCEKİ geçmişe bakar ('I' ve 'M' türleri).
+   Yıllık (Y) ve rapor (R) geçmişe sayılmaz. */
 function compute(){
   var uses={};staff.forEach(function(s){uses[s.id]=[[],[],[],[],[],[],[]]});
-  leaves.forEach(function(l){if(l.type!=='I'||!uses[l.staff_id])return;var n=dnum(l.day);uses[l.staff_id][wdOf(n)].push(weekNo(n))});
+  leaves.forEach(function(l){if((l.type!=='I'&&l.type!=='M')||!uses[l.staff_id])return;var n=dnum(l.day);uses[l.staff_id][wdOf(n)].push(weekNo(n))});
   var wk=weekNo(week),pct={};staff.forEach(function(s){pct[s.id]=[]});
   for(var d=0;d<7;d++){
     var cnt={},hs={},m=0;
@@ -298,7 +298,7 @@ function pctTable(c){
     h+='</tr>';
   });
   h+='</table></div><div class="bar"></div><div class="bl"><span>0</span><span>50</span><span>75</span><span>100</span></div>';
-  h+='<details id="how"'+(howOpen?' open':'')+' style="margin-top:10px"><summary><b>Yüzde nasıl okunur?</b></summary><ul class="how"><li>Yüzde, kişinin o günü geçmiş haftalarda kaç kez izin olarak kullandığına göre belirlenir. Hiç kullanmayan %100 alır.</li><li>Sayılar eşitse o günü en uzun süredir kullanmayan öne geçer. Yine eşitse önce seçen öne geçer.</li><li>Kontenjan dolunca yüzdesi en düşük olanlar sırada kalır.</li><li>⭐ Mazeretli, yıllık izin ve rapor yüzdeye bakılmadan yönetici tarafından verilir ve geçmiş hesabına sayılmaz.</li></ul></details></div>';
+  h+='<details id="how"'+(howOpen?' open':'')+' style="margin-top:10px"><summary><b>Yüzde nasıl okunur?</b></summary><ul class="how"><li>Yüzde, kişinin o günü geçmiş haftalarda kaç kez izin olarak kullandığına göre belirlenir. Hiç kullanmayan %100 alır.</li><li>Sayılar eşitse o günü en uzun süredir kullanmayan öne geçer. Yine eşitse önce seçen öne geçer.</li><li>Kontenjan dolunca yüzdesi en düşük olanlar sırada kalır.</li><li>⭐ Mazeretli, yıllık izin ve rapor yüzdeye bakılmadan yönetici tarafından verilir. Mazeretli günler geçmiş hesabına sayılır; yıllık izin ve rapor sayılmaz.</li></ul></details></div>';
   return h;
 }
 
