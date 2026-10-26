@@ -76,7 +76,7 @@ details>summary{cursor:pointer;padding:2px 0}
 .lg .tm{color:var(--mute);font-size:12.5px;min-width:92px}
 .tt{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
 .wrap{overflow-x:auto}
-table.pt{border-collapse:collapse;width:100%;font-size:13.5px}
+table.pt{border-collapse:collapse;table-layout:fixed;width:100%;font-size:13.5px}
 .pt th,.pt td{border:1px solid var(--line);padding:4px 5px;text-align:center;white-space:nowrap}
 .pt th{background:var(--fld)}.pt th small{display:block;color:var(--mute);font-weight:400}
 .pt td.n{text-align:left;font-weight:600;position:sticky;left:0;background:var(--card)}
@@ -312,7 +312,7 @@ function adminTab(){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')):'Durum yükleniyor…';
     return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns"><button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN belirle</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği kaldır':'Yönetici yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button></div></div>'}).join('');
   h+='<div class="sub">Yeni personel ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik geçici PIN verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn pri" data-a="addstaff">Ekle</button><pre id="pinout" class="pinout"></pre></div>';
-  h+='<div class="card"><div class="sub">Haftanın listesi (PDF)</div><div class="mute s" style="margin-bottom:8px">Seçili haftanın günlük listesini PDF yapar. Telefonda paylaşma ekranı açılır (WhatsApp, e-posta vb.).</div><div class="row"><button class="btn pri" data-a="export-pdf">PDF hazırla ve gönder</button></div></div>'+
+  h+='<div class="card"><div class="sub">Haftanın listesi (PDF)</div><div class="mute s" style="margin-bottom:8px">Seçili haftanın çizelgesini tek sayfa PDF yapar ve paylaşma penceresini açar. Pencerede WhatsApp\'ı seçin.</div><div class="row"><button class="btn pri" data-a="export-pdf">PDF hazırla ve gönder</button></div></div>'+
   '<div class="card"><div class="sub">Yedek</div><div class="mute s" style="margin-bottom:8px">Tüm izin kayıtlarını telefonunuza ya da bilgisayarınıza indirir. PIN\'ler dahil değildir.</div><div class="row"><button class="btn" data-a="export-csv">Excel için (CSV)</button><button class="btn" data-a="export-json">Tam yedek (JSON)</button></div></div>';
   if(admin&&admin.viaStaff)h+='<div class="card"><div class="sub">Yönetici</div><div class="mute s">Yönetici yetkiniz kendi PIN\'inizle açıldı. Kapatmak için sayfanın üstünden çıkış yapın.</div></div>';
   else h+='<div class="card"><div class="sub">Ortak yönetici PIN</div><div class="row"><button class="btn" data-a="adm-pinchg">Ortak PIN\'i değiştir</button><button class="btn out" data-a="adm-out">Yönetici modunu kapat</button></div></div>';
@@ -404,30 +404,64 @@ function saveAdm(){try{if(admin&&!admin.viaStaff)sessionStorage.setItem('izin_ad
 
 function loadScript(src){return new Promise(function(ok,no){var e=document.createElement('script');e.src=src;e.onload=ok;e.onerror=function(){no(new Error('yüklenemedi'))};document.head.appendChild(e)})}
 function pdfHtml(c){
-  var h='<div style="font-family:Arial,Helvetica,sans-serif;color:#111;width:700px;padding:6px 4px">';
-  h+='<div style="font-size:20px;font-weight:700">Personel İzin Listesi</div><div style="font-size:13px;color:#555;margin:2px 0 12px">'+dLabel(week)+' – '+dLabel(week+6)+'</div>';
-  for(var i=0;i<7;i++){
-    var r=c.res[i],all=r.fixed.concat(r.ok);
-    h+='<div style="margin:0 0 10px;page-break-inside:avoid"><div style="font-size:14px;font-weight:700;background:#eef1f5;padding:4px 8px;border-radius:4px">'+DAYS[i]+' · '+dLabel(week+i)+' <span style="font-weight:400;color:#555">— '+all.length+' kişi (kontenjan '+r.quota+')</span></div>';
-    if(!all.length&&!r.wait.length)h+='<div style="padding:4px 8px;font-size:13px;color:#777">Kimse yok</div>';
-    all.forEach(function(l,k){var nmn=staffById[l.staff_id]?staffById[l.staff_id].name:'?';h+='<div style="padding:2px 8px;font-size:13px">'+(k+1)+'. '+esc(nmn)+(l.type!=='I'?' <span style="color:#a15c00">('+TN[l.type].toLowerCase()+')</span>':'')+'</div>'});
-    if(r.wait.length){h+='<div style="padding:4px 8px 0;font-size:12px;color:#777">Sırada: '+r.wait.map(function(l){return esc(staffById[l.staff_id]?staffById[l.staff_id].name:'?')}).join(', ')+'</div>'}
-    h+='</div>';
-  }
+  var n=staff.length||1,rh=Math.max(22,Math.min(32,Math.floor(540/n))),fs=rh>=28?15:13;
+  var th='padding:6px 4px;text-align:center;font-weight:700;color:#fff;background:#1f3a5f;border-left:1px solid #3b5a85';
+  var h='<div style="font-family:Arial,Helvetica,sans-serif;color:#1c2430;width:1040px;padding:4px 6px;background:#fff">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px"><div><div style="font-size:24px;font-weight:700;color:#1f3a5f">Personel İzin Çizelgesi</div><div style="font-size:14px;color:#5b6675;margin-top:2px">'+dLabel(week)+' – '+dLabel(week+6)+' haftası</div></div><div style="font-size:11px;color:#8a94a3;text-align:right">Hazırlanma: '+dLabel(todayNum())+'</div></div>';
+  h+='<table style="border-collapse:collapse;table-layout:fixed;width:100%;font-size:'+fs+'px"><tr><th style="'+th+';text-align:left;padding-left:10px;border-left:0;width:230px">Personel</th>';
+  for(var d=0;d<7;d++){var r0=c.res[d];h+='<th style="'+th+'">'+DAYS[d]+'<div style="font-weight:400;font-size:11px;opacity:.85">'+dLabel(week+d)+'</div></th>'}
+  h+='</tr>';
+  staff.forEach(function(st,k){
+    var bg=k%2?'#f4f6fa':'#fff';
+    h+='<tr style="height:'+rh+'px;background:'+bg+'"><td style="padding:0 10px;font-weight:600;border-bottom:1px solid #e1e6ee">'+esc(st.name)+'</td>';
+    for(var d=0;d<7;d++){
+      var l=leaves.get(st.id+'|'+dstr(week+d)),r1=c.res[d],cell='',cs='';
+      if(l){
+        if(l.type==='I'){
+          if(r1.okIds[st.id])cell='<span style="color:#1a8f4c;font-size:'+(fs+6)+'px;font-weight:700">✓</span>';
+          else{cell='<span style="color:#9aa3b1;font-size:11px">sırada</span>'}
+        }else{
+          var col=l.type==='M'?'#c47a00':'#4b5fc4';
+          cell='<span style="color:'+col+';font-size:'+(fs+6)+'px;font-weight:700">✓</span><span style="color:'+col+';font-size:10px;font-weight:700;margin-left:2px">'+l.type+'</span>';
+          cs='background:'+(l.type==='M'?'#fff4dc':'#e9ecff')+';';
+        }
+        if(l.type==='I'&&r1.okIds[st.id])cs='background:#e4f6ec;';
+      }
+      h+='<td style="text-align:center;border-bottom:1px solid #e1e6ee;border-left:1px solid #e1e6ee;'+cs+'">'+cell+'</td>';
+    }
+    h+='</tr>';
+  });
+  h+='<tr style="height:'+Math.max(24,rh-2)+'px;background:#eef1f6;font-weight:700"><td style="padding:0 10px">Toplam / kontenjan</td>';
+  for(var e=0;e<7;e++){var rr=c.res[e];h+='<td style="text-align:center;border-left:1px solid #d5dbe6">'+(rr.fixed.length+rr.ok.length)+' / '+rr.quota+'</td>'}
+  h+='</tr></table>';
+  h+='<div style="margin-top:10px;font-size:11px;color:#5b6675"><span style="color:#1a8f4c;font-weight:700">✓</span> Normal izin &nbsp;·&nbsp; <span style="color:#c47a00;font-weight:700">✓M</span> Mazeretli &nbsp;·&nbsp; <span style="color:#4b5fc4;font-weight:700">✓Y</span> Yıllık izin &nbsp;·&nbsp; <span style="color:#4b5fc4;font-weight:700">✓R</span> Rapor &nbsp;·&nbsp; sırada: kontenjan dolduğu için bekliyor</div>';
   return h+'</div>';
 }
+var pdfFile=null;
+function showShare(f){
+  var o=document.createElement('div');o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;display:flex;align-items:center;justify-content:center;padding:20px';
+  o.innerHTML='<div class="card" style="max-width:340px;width:100%;text-align:center"><b>PDF hazır</b><div class="mute s" style="margin:6px 0 12px">Paylaşmak için dokunun, açılan pencerede WhatsApp\'ı seçin.</div><button class="btn pri big" id="shbtn">WhatsApp\'ta paylaş</button><div style="height:8px"></div><button class="btn" id="shdl">Telefona indir</button><div style="height:8px"></div><button class="btn" id="shx">Kapat</button></div>';
+  document.body.appendChild(o);
+  $('shbtn').onclick=function(){navigator.share({files:[f],title:'Personel izin çizelgesi'}).then(function(){o.remove()}).catch(function(e){if(!e||e.name!=='AbortError')saveFile(f)})};
+  $('shdl').onclick=function(){saveFile(f);o.remove()};
+  $('shx').onclick=function(){o.remove()};
+}
+function saveFile(f){var u=URL.createObjectURL(f),a=document.createElement('a');a.href=u;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000);toast('PDF indirildi')}
 async function exportPdf(){
   toast('PDF hazırlanıyor…');
   try{
     if(!window.html2pdf)await loadScript('https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js');
-    var sy=window.scrollY;window.scrollTo(0,0);var wrap=document.createElement('div');wrap.style.cssText='position:fixed;left:-9999px;top:0';var box=document.createElement('div');box.style.background='#fff';box.innerHTML=pdfHtml(compute());wrap.appendChild(box);document.body.appendChild(wrap);
-    var name='izin-listesi-'+dstr(week)+'.pdf';
-    var blob=await window.html2pdf().set({margin:10,filename:name,image:{type:'jpeg',quality:.95},html2canvas:{scale:2,backgroundColor:'#fff'},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css']}}).from(box).outputPdf('blob');
+    var sy=window.scrollY;window.scrollTo(0,0);
+    var wrap=document.createElement('div');wrap.style.cssText='position:fixed;left:-9999px;top:0';var box=document.createElement('div');box.style.background='#fff';box.innerHTML=pdfHtml(compute());wrap.appendChild(box);document.body.appendChild(wrap);
+    var name='izin-cizelgesi-'+dstr(week)+'.pdf';
+    var blob=await window.html2pdf().set({margin:8,filename:name,image:{type:'jpeg',quality:.96},html2canvas:{scale:2,backgroundColor:'#fff'},jsPDF:{unit:'mm',format:'a4',orientation:'landscape'},pagebreak:{mode:['css']}}).from(box).outputPdf('blob');
     wrap.remove();window.scrollTo(0,sy);
     var f=new File([blob],name,{type:'application/pdf'});
-    if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'Personel izin listesi'});return}catch(e){if(e&&e.name==='AbortError')return}}
-    var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000);
-    toast('PDF indirildi');
+    if(navigator.canShare&&navigator.canShare({files:[f]})){
+      try{await navigator.share({files:[f],title:'Personel izin çizelgesi'});return}
+      catch(e){if(e&&e.name==='AbortError')return;showShare(f);return}
+    }
+    saveFile(f);
   }catch(e){toast('PDF hazırlanamadı, internet bağlantısını kontrol edin',1)}
 }
 function download(name,text,mime){
