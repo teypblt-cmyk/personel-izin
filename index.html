@@ -224,7 +224,7 @@ function renderNav(){
 
 function weekHead(){
   var tn=todayNum(),isCur=weekMon(tn)===week;
-  return '<div class="wk"><button class="btn" data-a="prev" aria-label="Önceki hafta"'+(week<=FIRST_WEEK?' disabled':'')+'>‹</button><div class="wt"><b>'+dLabel(week)+' – '+dLabel(week+6)+'</b><small>'+(isCur?'Bu hafta':'<a href="#" data-a="today">Bu haftaya dön</a>')+'</small></div><button class="btn" data-a="next" aria-label="Sonraki hafta"'+(week>=weekMon(todayNum())?' disabled':'')+'>›</button></div>';
+  return '<div class="wk"><button class="btn" data-a="prev" aria-label="Önceki hafta"'+(week<=FIRST_WEEK?' disabled':'')+'>‹</button><div class="wt"><b>'+dLabel(week)+' – '+dLabel(week+6)+'</b><small>'+(isCur?'Bu hafta':week>weekMon(tn)?'Gelecek hafta · <a href="#" data-a="today">Bu haftaya dön</a>':'<a href="#" data-a="today">Bu haftaya dön</a>')+'</small></div><button class="btn" data-a="next" aria-label="Sonraki hafta"'+(week>=weekMon(todayNum())+7?' disabled':'')+'>›</button></div>';
 }
 
 function dayStrip(c){
@@ -432,7 +432,7 @@ async function act(a,d,el){
     case 'tab':tab=d.t;renderNav();renderMain();if(tab==='yon')loadStatus();window.scrollTo(0,0);return;
     case 'selday':selDay=+d.i;renderMain();return;
     case 'prev':if(week<=FIRST_WEEK)return;week-=7;renderMain();return;
-    case 'next':if(week>=weekMon(todayNum()))return;week+=7;renderMain();return;
+    case 'next':if(week>=weekMon(todayNum())+7)return;week+=7;renderMain();return;
     case 'today':week=weekMon(todayNum());selDay=wdOf(todayNum());renderMain();return;
     case 'install':{if(deferredPrompt){deferredPrompt.prompt();try{await deferredPrompt.userChoice}catch(e){}deferredPrompt=null;renderInstall()}return}
     case 'inst-x':try{localStorage.setItem('izin_inst','1')}catch(e){}renderInstall();return;
