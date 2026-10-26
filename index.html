@@ -179,7 +179,7 @@ function compute(){
       rows.forEach(function(l){(l.type==='I'?req:fixed).push(l)});
       fixed.sort(function(a,b){return a.type<b.type?-1:a.type>b.type?1:nm(a).localeCompare(nm(b),'tr')});
       req.sort(function(a,b){return (pct[b.staff_id][i]-pct[a.staff_id][i])||(ts(a.created_at)-ts(b.created_at))||nm(a).localeCompare(nm(b),'tr')});
-      var rule=rules.get(ds)||{},q=rule.quota;
+      var rule=rules.get(ds)||{},q=(rule.quota!=null)?rule.quota:DEFQ[i];
       var slots=(q==null)?req.length:Math.max(0,q-fixed.length);
       var ok=req.slice(0,slots),okIds={};ok.forEach(function(l){okIds[l.staff_id]=1});
       res.push({ds:ds,fixed:fixed,ok:ok,okIds:okIds,wait:req.slice(slots),quota:q,locked:!!rule.locked});
@@ -217,7 +217,7 @@ function renderInstall(){
 }
 
 function renderNav(){
-  var tabs=[['gun','📅','Günler'],['yuzde','📊','Yüzde'],['hareket','🕘','Hareketler']];
+  var tabs=[['gun','📅','Günler'],['yuzde','📊','Öncelik'],['hareket','🕘','Hareketler']];
   if(admin)tabs.push(['yon','🛠','Yönetici']);
   $('nav').innerHTML=tabs.map(function(t){return '<button data-a="tab" data-t="'+t[0]+'" class="'+(tab===t[0]?'on':'')+'"><i>'+t[1]+'</i>'+t[2]+'</button>'}).join('');
 }
@@ -232,7 +232,7 @@ function dayStrip(c){
   for(var i=0;i<7;i++){
     var r=c.res[i],dn=week+i,used=r.fixed.length+r.ok.length,own=me?leaves.get(me.id+'|'+r.ds):null;
     var dot=own?'<i class="'+(own.type!=='I'?'fix':r.okIds[me.id]?'':'wait')+'"></i>':'';
-    var cnt=r.quota==null?String(used+r.wait.length):used+'/'+r.quota;
+    var cnt=used+'/'+r.quota;
     h+='<button class="dp'+(i===selDay?' on':'')+(dn===tn?' td':'')+(dn<tn?' past':'')+'" data-a="selday" data-i="'+i+'">'+dot+'<span>'+DS[i]+'</span><b>'+new Date(dn*864e5).getUTCDate()+'</b><em class="'+(r.quota!=null&&used>=r.quota?'full':'')+'">'+cnt+(r.locked?'🔒':'')+'</em></button>';
   }
   return h+'</div>';
@@ -249,12 +249,13 @@ function row(l,st,i,pct){
   return '<div class="p'+(mine?' me':'')+'"><span class="nm">'+esc(s.name)+'</span>'+tag+pc+ctl+'</div>';
 }
 
-var MAXW=2;
+var MAXW=2,WEEKCAP=34,DEFQ=[5,4,5,5,5,5,5];
+function weekNormals(){var n=0;for(var i=0;i<7;i++){var ds=dstr(week+i);leaves.forEach(function(l){if(l.day===ds&&l.type==='I'&&staffById[l.staff_id])n++})}return n}
 function myWeekCount(){var n=0;for(var i=0;i<7;i++){var l=leaves.get(me.id+'|'+dstr(week+i));if(l&&(l.type==='I'||l.type==='M'))n++}return n}
 function dayCard(i,pct,r){
   var dn=week+i,tn=todayNum(),past=dn<tn,isT=dn===tn,used=r.fixed.length+r.ok.length;
   var h='<div class="card day">';
-  h+='<div class="dh"><b>'+DAYS[i]+'</b> <span class="mute">'+dLabel(dn)+(isT?' · Bugün':'')+'</span><div class="cap'+(r.quota!=null&&used>=r.quota?' full':'')+'">'+(r.locked?'🔒 Kilitli · ':'')+(r.quota==null?'Kontenjan sınırsız · '+(used+r.wait.length)+' kişi':'Kontenjan '+r.quota+' · dolu '+used+(r.wait.length?' · '+r.wait.length+' sırada':''))+'</div></div>';
+  h+='<div class="dh"><b>'+DAYS[i]+'</b> <span class="mute">'+dLabel(dn)+(isT?' · Bugün':'')+'</span><div class="cap'+(r.quota!=null&&used>=r.quota?' full':'')+'">'+(r.locked?'🔒 Kilitli · ':'')+('Kontenjan '+r.quota+' · dolu '+used+(r.wait.length?' · '+r.wait.length+' sırada':''))+'</div></div>';
   if(me){
     var own=leaves.get(me.id+'|'+r.ds);
     if(own&&own.type!=='I'){/* yönetici belirlemiş, listede görünüyor */}
@@ -262,14 +263,15 @@ function dayCard(i,pct,r){
     else if(r.locked)h+='<div class="note">🔒 Bu gün kilitli, değişiklik için yöneticiye yazın</div>';
     else if(own)h+='<button class="btn out big" data-a="toggle" data-day="'+r.ds+'" data-on="0">Vazgeç</button>';
     else if(myWeekCount()>=MAXW)h+='<div class="note">Bu hafta en fazla '+MAXW+' gün izin seçebilirsiniz. Başka bir gün için önce birinden vazgeçin.</div>';
-    else h+='<button class="btn pri big" data-a="toggle" data-day="'+r.ds+'" data-on="1">İzin seç (yüzdeniz %'+pct[me.id][i]+')</button>';
+    else if(weekNormals()>=WEEKCAP)h+='<div class="note">Bu haftanın '+WEEKCAP+' izin hakkı doldu.</div>';
+    else h+='<button class="btn pri big" data-a="toggle" data-day="'+r.ds+'" data-on="1">İzin seç (önceliğiniz '+pct[me.id][i]+')</button>';
   }else if(!past)h+='<div class="note">İzin seçmek için yukarıdan adınızla giriş yapın</div>';
   if(!r.fixed.length&&!r.ok.length&&!r.wait.length)h+='<div class="empty">Henüz kimse seçmedi</div>';
   r.fixed.forEach(function(l){h+=row(l,'fix',i,pct)});
   r.ok.forEach(function(l){h+=row(l,'ok',i,pct)});
   if(r.wait.length){h+='<div class="sep">Kontenjan doldu, sırada bekleyenler</div>';r.wait.forEach(function(l){h+=row(l,'wait',i,pct)})}
   if(admin){
-    h+='<div class="adm"><div class="qc"><span class="s mute">Kontenjan</span><button class="btn s" data-a="quota" data-day="'+r.ds+'" data-d="-1">−</button><b>'+(r.quota==null?'∞':r.quota)+'</b><button class="btn s" data-a="quota" data-day="'+r.ds+'" data-d="1">+</button><button class="btn s" data-a="quota-inf" data-day="'+r.ds+'">∞</button></div><button class="btn s" data-a="lock" data-day="'+r.ds+'" data-v="'+(r.locked?0:1)+'">'+(r.locked?'Kilidi aç':'🔒 Kilitle')+'</button></div>';
+    h+='<div class="adm"><div class="qc"><span class="s mute">Kontenjan</span><button class="btn s" data-a="quota" data-day="'+r.ds+'" data-d="-1">−</button><b>'+r.quota+'</b><button class="btn s" data-a="quota" data-day="'+r.ds+'" data-d="1">+</button><button class="btn s" data-a="quota-inf" data-day="'+r.ds+'">Otomatik</button></div><button class="btn s" data-a="lock" data-day="'+r.ds+'" data-v="'+(r.locked?0:1)+'">'+(r.locked?'Kilidi aç':'🔒 Kilitle')+'</button></div>';
     var avail=staff.filter(function(s){return !leaves.has(s.id+'|'+r.ds)});
     h+='<details style="margin-top:8px"><summary class="s mute">+ Kişi ekle (mazeretli, yıllık, rapor)</summary><div class="add"><select id="ap-'+i+'"><option value="">Kişi seçin…</option>'+avail.map(function(s){return '<option value="'+s.id+'">'+esc(s.name)+'</option>'}).join('')+'</select><select id="at-'+i+'"><option value="M">⭐ Mazeretli</option><option value="Y">Yıllık</option><option value="R">Rapor</option><option value="I">Normal</option></select><button class="btn s pri" data-a="addrow" data-day="'+r.ds+'" data-i="'+i+'">Ekle</button></div></details>';
   }
@@ -285,7 +287,7 @@ function feedHtml(){
 }
 
 function pctTable(c){
-  var h='<div class="card"><div class="tt"><b>Yüzde listesi</b><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+' haftası. Yüksek yüzde o günü daha kolay alır. İşaretliler seçilen günlerdir.</span></div><div class="wrap"><table class="pt"><tr><th class="n"></th>';
+  var h='<div class="card"><div class="tt"><b>Öncelik listesi</b><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+' haftası. Sayı yüksekse o günü almak daha kolay. İşaretliler seçilen günlerdir.</span></div><div class="wrap"><table class="pt"><tr><th class="n"></th>';
   for(var d=0;d<7;d++)h+='<th>'+DS[d]+'<small>'+dShort(week+d)+'</small></th>';
   h+='</tr>';
   staff.forEach(function(s){
@@ -299,7 +301,7 @@ function pctTable(c){
     h+='</tr>';
   });
   h+='</table></div><div class="bar"></div><div class="bl"><span>0</span><span>50</span><span>75</span><span>100</span></div>';
-  h+='<details id="how"'+(howOpen?' open':'')+' style="margin-top:10px"><summary><b>Yüzde nasıl okunur?</b></summary><ul class="how"><li>Yüzde, kişinin o günü geçmiş haftalarda kaç kez izin olarak kullandığına göre belirlenir. Hiç kullanmayan %100 alır.</li><li>Sayılar eşitse o günü en uzun süredir kullanmayan öne geçer. Yine eşitse önce seçen öne geçer.</li><li>Kontenjan dolunca yüzdesi en düşük olanlar sırada kalır.</li><li>⭐ Mazeretli, yıllık izin ve rapor yüzdeye bakılmadan yönetici tarafından verilir. Mazeretli günler geçmiş hesabına sayılır; yıllık izin ve rapor sayılmaz.</li></ul></details></div>';
+  h+='<details id="how"'+(howOpen?' open':'')+' style="margin-top:10px"><summary><b>Öncelik nasıl okunur?</b></summary><ul class="how"><li>Sayı büyükse önceliğiniz yüksek demektir. O günü daha az kullanan öne geçer.</li><li>Kontenjan dolarsa önceliği düşük olan sırada bekler.</li><li>⭐ Mazeretli günleri yönetici verir, öncelik aranmaz.</li><li>Herkes haftada en fazla 2 gün seçebilir.</li></ul></details></div>';
   return h;
 }
 
@@ -310,7 +312,8 @@ function adminTab(){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')):'Durum yükleniyor…';
     return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns"><button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN belirle</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği kaldır':'Yönetici yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button></div></div>'}).join('');
   h+='<div class="sub">Yeni personel ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik geçici PIN verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn pri" data-a="addstaff">Ekle</button><pre id="pinout" class="pinout"></pre></div>';
-  h+='<div class="card"><div class="sub">Yedek</div><div class="mute s" style="margin-bottom:8px">Tüm izin kayıtlarını telefonunuza ya da bilgisayarınıza indirir. PIN\'ler dahil değildir.</div><div class="row"><button class="btn" data-a="export-csv">Excel için (CSV)</button><button class="btn" data-a="export-json">Tam yedek (JSON)</button></div></div>';
+  h+='<div class="card"><div class="sub">Haftanın listesi (PDF)</div><div class="mute s" style="margin-bottom:8px">Seçili haftanın günlük listesini PDF yapar. Telefonda paylaşma ekranı açılır (WhatsApp, e-posta vb.).</div><div class="row"><button class="btn pri" data-a="export-pdf">PDF hazırla ve gönder</button></div></div>'+
+  '<div class="card"><div class="sub">Yedek</div><div class="mute s" style="margin-bottom:8px">Tüm izin kayıtlarını telefonunuza ya da bilgisayarınıza indirir. PIN\'ler dahil değildir.</div><div class="row"><button class="btn" data-a="export-csv">Excel için (CSV)</button><button class="btn" data-a="export-json">Tam yedek (JSON)</button></div></div>';
   if(admin&&admin.viaStaff)h+='<div class="card"><div class="sub">Yönetici</div><div class="mute s">Yönetici yetkiniz kendi PIN\'inizle açıldı. Kapatmak için sayfanın üstünden çıkış yapın.</div></div>';
   else h+='<div class="card"><div class="sub">Ortak yönetici PIN</div><div class="row"><button class="btn" data-a="adm-pinchg">Ortak PIN\'i değiştir</button><button class="btn out" data-a="adm-out">Yönetici modunu kapat</button></div></div>';
   return h;
@@ -399,6 +402,34 @@ function setLocal(staffId,day,type){
 function saveMe(){try{if(me)localStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));else localStorage.removeItem('izin_me')}catch(e){}}
 function saveAdm(){try{if(admin&&!admin.viaStaff)sessionStorage.setItem('izin_adm',admin.pin);else sessionStorage.removeItem('izin_adm')}catch(e){}}
 
+function loadScript(src){return new Promise(function(ok,no){var e=document.createElement('script');e.src=src;e.onload=ok;e.onerror=function(){no(new Error('yüklenemedi'))};document.head.appendChild(e)})}
+function pdfHtml(c){
+  var h='<div style="font-family:Arial,Helvetica,sans-serif;color:#111;width:700px;padding:6px 4px">';
+  h+='<div style="font-size:20px;font-weight:700">Personel İzin Listesi</div><div style="font-size:13px;color:#555;margin:2px 0 12px">'+dLabel(week)+' – '+dLabel(week+6)+'</div>';
+  for(var i=0;i<7;i++){
+    var r=c.res[i],all=r.fixed.concat(r.ok);
+    h+='<div style="margin:0 0 10px;page-break-inside:avoid"><div style="font-size:14px;font-weight:700;background:#eef1f5;padding:4px 8px;border-radius:4px">'+DAYS[i]+' · '+dLabel(week+i)+' <span style="font-weight:400;color:#555">— '+all.length+' kişi (kontenjan '+r.quota+')</span></div>';
+    if(!all.length&&!r.wait.length)h+='<div style="padding:4px 8px;font-size:13px;color:#777">Kimse yok</div>';
+    all.forEach(function(l,k){var nmn=staffById[l.staff_id]?staffById[l.staff_id].name:'?';h+='<div style="padding:2px 8px;font-size:13px">'+(k+1)+'. '+esc(nmn)+(l.type!=='I'?' <span style="color:#a15c00">('+TN[l.type].toLowerCase()+')</span>':'')+'</div>'});
+    if(r.wait.length){h+='<div style="padding:4px 8px 0;font-size:12px;color:#777">Sırada: '+r.wait.map(function(l){return esc(staffById[l.staff_id]?staffById[l.staff_id].name:'?')}).join(', ')+'</div>'}
+    h+='</div>';
+  }
+  return h+'</div>';
+}
+async function exportPdf(){
+  toast('PDF hazırlanıyor…');
+  try{
+    if(!window.html2pdf)await loadScript('https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js');
+    var sy=window.scrollY;window.scrollTo(0,0);var wrap=document.createElement('div');wrap.style.cssText='position:fixed;left:-9999px;top:0';var box=document.createElement('div');box.style.background='#fff';box.innerHTML=pdfHtml(compute());wrap.appendChild(box);document.body.appendChild(wrap);
+    var name='izin-listesi-'+dstr(week)+'.pdf';
+    var blob=await window.html2pdf().set({margin:10,filename:name,image:{type:'jpeg',quality:.95},html2canvas:{scale:2,backgroundColor:'#fff'},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css']}}).from(box).outputPdf('blob');
+    wrap.remove();window.scrollTo(0,sy);
+    var f=new File([blob],name,{type:'application/pdf'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'Personel izin listesi'});return}catch(e){if(e&&e.name==='AbortError')return}}
+    var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000);
+    toast('PDF indirildi');
+  }catch(e){toast('PDF hazırlanamadı, internet bağlantısını kontrol edin',1)}
+}
 function download(name,text,mime){
   var b=new Blob([text],{type:mime}),a=document.createElement('a');
   a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();
@@ -462,8 +493,7 @@ async function act(a,d,el){
     case 'quota':case 'quota-inf':{
       var rule=rules.get(d.day)||{},cur=rule.quota,nq=null;
       if(a==='quota'){
-        var base=cur;
-        if(base==null){base=0;leaves.forEach(function(l){if(l.day===d.day&&staffById[l.staff_id])base++})}
+        var base=(cur!=null)?cur:DEFQ[wdOf(dnum(d.day))];
         nq=Math.max(0,base+(+d.d));
       }
       r=await rpc('admin_set_quota',{p_pin:admin.pin,p_day:d.day,p_quota:nq});
@@ -531,6 +561,7 @@ async function act(a,d,el){
       r=await rpc('admin_change_pin',{p_old:op.trim(),p_new:np.trim()});
       if(r&&r.ok){admin.pin=np.trim();saveAdm();toast('Yönetici PIN değiştirildi')}
       break}
+    case 'export-pdf':await exportPdf();break;
     case 'export-csv':await exportData('csv');break;
     case 'export-json':await exportData('json');break;
   }
