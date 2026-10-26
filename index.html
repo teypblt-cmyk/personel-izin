@@ -154,7 +154,7 @@ function ts(s){return Date.parse(String(s).replace(' ','T').replace(/\+00$/,'Z')
 function fmtAt(at){return new Intl.DateTimeFormat('tr-TR',{timeZone:TZ,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(ts(at)))}
 
 /* ---------- durum ---------- */
-var sb=null,staff=[],staffById={},leaves=new Map(),rules=new Map(),logs=[],ready=false,live=false;
+var sb=null,staff=[],staffById={},leaves=new Map(),rules=new Map(),logs=[],logsAll=null,logShow=200,logQ='',ready=false,live=false;
 var FIRST_WEEK=Math.floor(Date.UTC(2026,8,21)/864e5);
 var me=null,admin=null,statusList=[],week=weekMon(todayNum())+7,selDay=0,tab='gun',howOpen=false,staffOpen=false,deferredPrompt=null;
 var rT=0,pendingRender=false;
@@ -246,7 +246,7 @@ function renderNav(){
   if(!me&&!admin){$('nav').style.display='none';$('nav').innerHTML='';return}
   $('nav').style.display='';
   var tabs=[['gun','📅','Günler'],['yuzde','📊','Öncelik']];
-  if(admin)tabs.push(['yon','🛠','Yönetici']);
+  if(admin){tabs.push(['hrk','🕘','Hareketler']);tabs.push(['yon','🛠','Yönetici'])}
   $('nav').innerHTML=tabs.map(function(t){return '<button data-a="tab" data-t="'+t[0]+'" class="'+(tab===t[0]?'on':'')+'"><i>'+t[1]+'</i>'+t[2]+'</button>'}).join('');
 }
 
@@ -318,6 +318,30 @@ function feedHtml(){
   }).join('');
 }
 
+function logTab(){
+  if(logsAll===null)return '<div class="card empty">Hareketler yükleniyor…</div>';
+  var q=logQ.trim().toLocaleLowerCase('tr'),list=logsAll;
+  if(q)list=list.filter(function(g){return ((g.who||'')+' '+(g.action||'')+' '+(g.detail||'')).toLocaleLowerCase('tr').indexOf(q)>=0});
+  var h='<div class="card"><div class="tt"><b>Tüm hareketler</b><span class="mute s">Sistem kurulduğundan bu yana '+logsAll.length+' kayıt'+(q?' · '+list.length+' sonuç':'')+'</span></div>';
+  h+='<div class="row" style="margin:8px 0"><input id="logq" type="search" placeholder="Kişi ya da işlem ara…" value="'+esc(logQ)+'" style="flex:1"><button class="btn s" data-a="logref">Yenile</button></div>';
+  if(!list.length)h+='<div class="empty">Kayıt yok</div>';
+  else h+=list.slice(0,logShow).map(function(g){
+    var dt='';if(g.day){var n=dnum(g.day);dt=' · '+DAYS[wdOf(n)]+' '+dLabel(n)}
+    return '<div class="lg"><span class="tm">'+esc(fmtAt(g.at))+'</span><span><b>'+esc(g.who)+'</b> '+esc(g.action)+(g.detail?' · '+esc(g.detail):'')+esc(dt)+'</span></div>';
+  }).join('');
+  if(list.length>logShow)h+='<button class="btn big" data-a="logmore" style="margin-top:10px">Daha fazla göster ('+(list.length-logShow)+')</button>';
+  return h+'</div>';
+}
+async function loadAllLogs(){
+  if(!admin||!sb)return;
+  var all=[],from=0,step=1000;
+  for(var k=0;k<200;k++){
+    var r=await sb.from('log').select('id,at,who,action,day,detail').order('id',{ascending:false}).range(from,from+step-1);
+    if(r.error){toast('Hareketler yüklenemedi',1);break}
+    all=all.concat(r.data||[]);if(!r.data||r.data.length<step)break;from+=step;
+  }
+  logsAll=all;if(tab==='hrk')scheduleRender();
+}
 function pctTable(c){
   var h='<div class="card"><div class="tt"><b>Öncelik listesi</b><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+' haftası. Sayı yüksekse o günü almak daha kolay. İşaretliler seçilen günlerdir.</span></div><div class="wrap"><table class="pt"><tr><th class="n"></th>';
   for(var d=0;d<7;d++)h+='<th>'+DS[d]+'<small>'+dShort(week+d)+'</small></th>';
@@ -372,7 +396,7 @@ function renderMain(){
   var el=$('main');
   if(week>maxWeek())week=maxWeek();
   if(!ready){el.innerHTML='<div class="card empty">Yükleniyor…</div>';return}
-  if(tab==='yon'&&!admin)tab='gun';
+  if((tab==='yon'||tab==='hrk')&&!admin)tab='gun';
   document.body.classList.toggle('gated',!me&&!admin);
   if(!me&&!admin){el.innerHTML=gateHtml();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
@@ -380,6 +404,7 @@ function renderMain(){
   if(tab==='gun'){var c=compute();h=weekHead()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])}
   else if(tab==='yuzde'){h=weekHead()+pctTable(compute())}
   else if(tab==='yon'){h=adminTab()}
+  else if(tab==='hrk'){h=logTab()}
   el.innerHTML=h;
 }
 function renderAll(){renderAuth();renderInstall();renderNav();renderMain()}
@@ -555,7 +580,7 @@ async function act(a,d,el){
   if(el&&el.tagName==='BUTTON')el.disabled=true;
   var r,x;
   switch(a){
-    case 'tab':tab=d.t;renderNav();renderMain();if(tab==='yon')loadStatus();window.scrollTo(0,0);return;
+    case 'tab':tab=d.t;renderNav();renderMain();if(tab==='yon')loadStatus();if(tab==='hrk')loadAllLogs();window.scrollTo(0,0);return;
     case 'selday':selDay=+d.i;renderMain();return;
     case 'prev':if(week<=FIRST_WEEK)return;week-=7;renderMain();return;
     case 'next':if(week>=maxWeek())return;week+=7;renderMain();return;
@@ -662,6 +687,8 @@ async function act(a,d,el){
       r=await rpc('admin_set_exempt',{p_pin:admin.pin,p_staff:+d.id,p_on:on5});
       if(r&&r.ok){await loadStaff();toast(on5?'★ Kontenjan dışı açıldı':'Kontenjan dışı kapatıldı')}
       break}
+    case 'logref':logsAll=null;renderMain();loadAllLogs();return;
+    case 'logmore':logShow+=200;renderMain();return;
     case 'role':{
       var s3=staffById[d.id],mk=d.v==='1';
       if(!s3||!confirm(s3.name+(mk?' yönetici yapılsın mı? Kendi PIN\'iyle girince yönetici paneli açılır.':' için yöneticilik kaldırılsın mı?')))break;
@@ -694,6 +721,9 @@ document.addEventListener('click',function(e){
   e.preventDefault();run(b.dataset.a,b.dataset,b)});
 document.addEventListener('change',function(e){
   var s=e.target;if(s.tagName==='SELECT'&&s.dataset.a){var d=Object.assign({},s.dataset,{value:s.value});s.blur();run(s.dataset.a,d,s)}});
+document.addEventListener('input',function(e){
+  if(e.target&&e.target.id==='logq'){logQ=e.target.value;logShow=200;renderMain();var q=$('logq');if(q){q.focus();var n=q.value.length;try{q.setSelectionRange(n,n)}catch(x){}}}
+});
 document.addEventListener('keydown',function(e){
   if(e.key!=='Enter')return;
   if(e.target.id==='pin'){e.preventDefault();run('login',{},null)}
