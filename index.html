@@ -117,7 +117,6 @@ ul.how{margin:6px 0 0;padding-left:18px}
 #nav button.on{color:var(--pri);background:var(--fld);font-weight:700}
 #bg{position:fixed;inset:0;z-index:-1;overflow:hidden;display:none;pointer-events:none;background:radial-gradient(120% 80% at 50% 0%,#1b2a5c,#0b1020 70%)}
 body.gated #bg{display:block}
-#gimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 #gv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0b1020;opacity:0;transition:opacity .8s}
 #gv.on{opacity:1}
 
@@ -135,8 +134,8 @@ body.gated .gcard select option{color:#14213d;background:#fff}
 </style>
 </head>
 <body>
-<div id="bg" aria-hidden="true"><img id="gimg" alt="" decoding="async"><video id="gv" autoplay muted loop playsinline webkit-playsinline preload="auto" disablepictureinpicture></video><div class="gshade"></div></div>
-<script>(function(){try{var v=document.getElementById("gv");v.defaultMuted=true;v.muted=true;if(!sessionStorage.getItem("izin_me")&&!sessionStorage.getItem("izin_adm")){document.body.classList.add("gated");v.addEventListener("playing",function(){v.classList.add("on")});v.src="giris.mp4";v.load();var p=v.play();if(p&&p.catch)p.catch(function(){});setTimeout(function(){if(v.paused||v.readyState<2||!v.currentTime){document.getElementById("gimg").src="giris.webp"}},800)}}catch(e){}})()</script>
+<div id="bg" aria-hidden="true"><video id="gv" autoplay muted loop playsinline webkit-playsinline preload="auto" disablepictureinpicture></video><div class="gshade"></div></div>
+<script>(function(){try{var v=document.getElementById("gv");v.defaultMuted=true;v.muted=true;if(!sessionStorage.getItem("izin_me")&&!sessionStorage.getItem("izin_adm")){document.body.classList.add("gated");v.addEventListener("playing",function(){v.classList.add("on")});v.src="giris.mp4";v.load();var p=v.play();if(p&&p.catch)p.catch(function(){})}}catch(e){}})()</script>
 <div class="top"><h1>Personel İzin</h1><span id="live" class="live off">○ Bağlanıyor…</span></div>
 <div id="err"></div>
 <section class="card" id="auth"></section>
