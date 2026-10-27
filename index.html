@@ -115,9 +115,25 @@ ul.how{margin:6px 0 0;padding-left:18px}
 #nav button{flex:1;max-width:160px;border:0;background:transparent;border-radius:10px;padding:6px 2px;font-size:11.5px;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
 #nav button i{font-style:normal;font-size:20px;line-height:1}
 #nav button.on{color:var(--pri);background:var(--fld);font-weight:700}
+#bg{position:fixed;inset:0;z-index:-1;overflow:hidden;display:none;pointer-events:none}
+body.gated #bg{display:block}
+#bg .b{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;will-change:transform}
+#bg .b1{width:70vmax;height:70vmax;left:-25vmax;top:-20vmax;background:radial-gradient(circle,#4f8bff,transparent 65%);animation:fl1 19s ease-in-out infinite alternate}
+#bg .b2{width:60vmax;height:60vmax;right:-22vmax;top:10vh;background:radial-gradient(circle,#8a5cff,transparent 65%);animation:fl2 23s ease-in-out infinite alternate}
+#bg .b3{width:55vmax;height:55vmax;left:-10vmax;bottom:-25vmax;background:radial-gradient(circle,#2fd4b0,transparent 65%);animation:fl3 21s ease-in-out infinite alternate;opacity:.4}
+#bg .b4{width:40vmax;height:40vmax;right:5vmax;bottom:-12vmax;background:radial-gradient(circle,#ff8fb1,transparent 65%);animation:fl1 26s ease-in-out infinite alternate-reverse;opacity:.35}
+#bg .fl{position:absolute;bottom:-60px;font-size:26px;opacity:0;color:#2f6bff;animation:rise 16s linear infinite}
+#bg .f1{left:12%;animation-delay:0s}#bg .f2{left:30%;animation-delay:4s;font-size:30px}#bg .f3{left:55%;animation-delay:8s}#bg .f4{left:75%;animation-delay:2s;font-size:30px}#bg .f5{left:90%;animation-delay:11s;font-size:22px}
+@keyframes fl1{to{transform:translate(12vmax,10vmax) scale(1.15)}}
+@keyframes fl2{to{transform:translate(-14vmax,8vmax) scale(.9)}}
+@keyframes fl3{to{transform:translate(14vmax,-8vmax) scale(1.2)}}
+@keyframes rise{0%{transform:translateY(0) rotate(0);opacity:0}10%{opacity:.35}85%{opacity:.25}100%{transform:translateY(-115vh) rotate(25deg);opacity:0}}
+@media (prefers-reduced-motion:reduce){#bg .b,#bg .fl{animation:none}#bg .fl{display:none}}
+body.gated .gcard{background:color-mix(in srgb,var(--card) 80%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 </style>
 </head>
 <body>
+<div id="bg" aria-hidden="true"><i class="b b1"></i><i class="b b2"></i><i class="b b3"></i><i class="b b4"></i><span class="fl f1">✓</span><span class="fl f2">📅</span><span class="fl f3">✓</span><span class="fl f4">🗓️</span><span class="fl f5">✓</span></div>
 <div class="top"><h1>Personel İzin</h1><span id="live" class="live off">○ Bağlanıyor…</span></div>
 <div id="err"></div>
 <section class="card" id="auth"></section>
