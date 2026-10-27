@@ -250,6 +250,19 @@ function toggleSound(){
   b.classList.toggle('live',on);b.setAttribute('aria-pressed',on?'true':'false');b.setAttribute('aria-label',on?'Sesi kapat':'Sesi aç');
   $('snd-on').style.display=on?'':'none';$('snd-off').style.display=on?'none':'';
 }
+var gateLen=0,gateFor=0,loginBusy=false;
+async function fetchPinLen(){
+  var w=$('who');if(!w||!sb)return;var id=+w.value;
+  if(!id){gateLen=0;gateFor=0;return}
+  if(gateFor===id&&gateLen){var pp=$('pin');if(pp)pp.maxLength=gateLen;return}
+  gateFor=id;gateLen=0;
+  try{var res=await sb.rpc('staff_pin_len',{p_staff:id});if(+w.value===id&&res&&!res.error&&typeof res.data==='number'){gateLen=res.data;var p2=$('pin');if(p2){p2.maxLength=gateLen;if(p2.value.length>=gateLen)autoLogin()}}}catch(e){}
+}
+function autoLogin(){
+  var w=$('who'),pn=$('pin');if(!w||!pn||loginBusy||!gateLen)return;
+  if(+w.value!==gateFor)return;
+  if((pn.value||'').trim().length>=gateLen)run('login',{},null);
+}
 function gateHtml(){
   var prev=$('who')?$('who').value:'';
   if(!prev){try{prev=localStorage.getItem('izin_last')||''}catch(e){}}
@@ -445,7 +458,7 @@ function renderMain(){
   if((tab==='yon'||tab==='hrk')&&!admin)tab='gun';
   document.body.classList.toggle('gated',!me&&!admin);
   syncVideo(!me&&!admin);
-  if(!me&&!admin){el.innerHTML=gateHtml();return}
+  if(!me&&!admin){el.innerHTML=gateHtml();fetchPinLen();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
   var h='';
   if(tab==='gun'){var c=compute();h=weekHead()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])}
@@ -643,7 +656,9 @@ async function act(a,d,el){
     case 'login':{
       var id=+$('who').value,pin=($('pin').value||'').trim();
       if(!id||!pin){toast('Adınızı seçip PIN girin',1);break}
-      r=await rpc('staff_login',{p_staff:id,p_pin:pin});
+      if(loginBusy)break;loginBusy=true;
+      try{r=await rpc('staff_login',{p_staff:id,p_pin:pin})}finally{loginBusy=false}
+      if(!(r&&r.ok)){var pf=$('pin');if(pf){pf.value='';pf.focus()}}
       if(r&&r.ok){me={id:id,pin:pin,name:r.name,mustChange:!!r.must_change};if(r.admin)admin={pin:id+':'+pin,viaStaff:true};saveMe();renderAll();toast('Hoş geldiniz '+r.name);if(admin)loadStatus()}
       break}
     case 'logout':me=null;if(admin&&admin.viaStaff)admin=null;if(tab==='yon')tab='gun';saveMe();renderAll();return;
@@ -773,11 +788,14 @@ document.addEventListener('click',function(e){
   if(!b||/^(SELECT|INPUT|OPTION|TEXTAREA)$/.test(e.target.tagName)||b.tagName==='SELECT')return;
   e.preventDefault();run(b.dataset.a,b.dataset,b)});
 document.addEventListener('change',function(e){
+  if(e.target&&e.target.id==='who'){var pp=$('pin');if(pp){pp.value='';pp.focus()}fetchPinLen();return}
+
   var s=e.target;if(s.tagName==='SELECT'&&s.dataset.a){var d=Object.assign({},s.dataset,{value:s.value});s.blur();run(s.dataset.a,d,s)}});
 document.addEventListener('click',function(e){if(e.target&&e.target.closest&&e.target.closest('#snd')){toggleSound();return}var v=$('gv');if(v&&v.paused)playGv()});
 document.addEventListener('touchstart',function(){var v=$('gv');if(v&&v.paused)playGv()},{passive:true});
 document.addEventListener('visibilitychange',function(){if(!document.hidden)playGv()});
 document.addEventListener('input',function(e){
+  if(e.target&&e.target.id==='pin'){autoLogin();return}
   if(e.target&&e.target.id==='logq'){logQ=e.target.value;logShow=200;renderMain();var q=$('logq');if(q){q.focus();var n=q.value.length;try{q.setSelectionRange(n,n)}catch(x){}}}
 });
 document.addEventListener('keydown',function(e){
