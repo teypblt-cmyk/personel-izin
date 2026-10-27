@@ -130,16 +130,32 @@ body.gated #bg{display:block}
 @keyframes rise{0%{transform:translateY(0) rotate(0);opacity:0}10%{opacity:.35}85%{opacity:.25}100%{transform:translateY(-115vh) rotate(25deg);opacity:0}}
 @media (prefers-reduced-motion:reduce){#bg .b,#bg .fl{animation:none}#bg .fl{display:none}}
 body.gated .gcard{background:color-mix(in srgb,var(--card) 80%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+#gv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0b1020;opacity:0;transition:opacity .8s}
+#gv.on{opacity:1}
+#gv.on~.b,#gv.on~.fl{display:none}
+.gshade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,10,24,.55),rgba(6,10,24,.35) 40%,rgba(6,10,24,.7))}
+#snd{display:none;position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(10,14,30,.5);color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);cursor:pointer;align-items:center;justify-content:center;padding:0;z-index:5}
+body.gated #snd{display:flex}
+#snd.live{box-shadow:0 0 0 4px rgba(79,139,255,.35)}
+body.gated .gate h2{color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.5)}
+body.gated .gsub,body.gated .ghint{color:rgba(255,255,255,.78)}
+body.gated .gcard{background:rgba(12,16,34,.55);border-color:rgba(255,255,255,.18);box-shadow:0 20px 50px -20px rgba(0,0,0,.7)}
+body.gated .gl{color:rgba(255,255,255,.72)}
+body.gated .gcard select,body.gated .gcard input{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff}
+body.gated .gcard input::placeholder{color:rgba(255,255,255,.5)}
+body.gated .gcard select option{color:#14213d;background:#fff}
+@media (prefers-reduced-motion:reduce){#gv{display:none}}
 </style>
 </head>
 <body>
-<div id="bg" aria-hidden="true"><i class="b b1"></i><i class="b b2"></i><i class="b b3"></i><i class="b b4"></i><span class="fl f1">✓</span><span class="fl f2">📅</span><span class="fl f3">✓</span><span class="fl f4">🗓️</span><span class="fl f5">✓</span></div>
+<div id="bg" aria-hidden="true"><video id="gv" muted loop playsinline webkit-playsinline preload="none" poster="giris-poster.jpg" disablepictureinpicture></video><div class="gshade"></div><i class="b b1"></i><i class="b b2"></i><i class="b b3"></i><i class="b b4"></i><span class="fl f1">✓</span><span class="fl f2">📅</span><span class="fl f3">✓</span><span class="fl f4">🗓️</span><span class="fl f5">✓</span></div>
 <div class="top"><h1>Personel İzin</h1><span id="live" class="live off">○ Bağlanıyor…</span></div>
 <div id="err"></div>
 <section class="card" id="auth"></section>
 <div id="inst"></div>
 <main id="main"><div class="card empty">Yükleniyor…</div></main>
 <nav id="nav"></nav>
+<button id="snd" type="button" aria-label="Sesi aç" aria-pressed="false" title="Sesi aç / kapat"><svg id="snd-off" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="m16 9 5 6M21 9l-5 6"/></svg><svg id="snd-on" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
 <div id="toast"></div>
 <noscript>Bu sayfa için JavaScript gerekli.</noscript>
 
@@ -222,6 +238,24 @@ function compute(){
 }
 
 /* ---------- ekran ---------- */
+function syncVideo(on){
+  var v=$('gv'),b=$('snd');if(!v)return;
+  if(on){
+    if(!v.getAttribute('src')){v.src='giris.mp4';v.addEventListener('playing',function(){v.classList.add('on')},{once:true})}
+    var pr=v.play();if(pr&&pr.catch)pr.catch(function(){});
+  }else{
+    try{v.pause();v.muted=true;v.classList.remove('on')}catch(e){}
+    if(b){b.classList.remove('live');b.setAttribute('aria-pressed','false');$('snd-on').style.display='none';$('snd-off').style.display=''}
+  }
+}
+function toggleSound(){
+  var v=$('gv');if(!v)return;
+  v.muted=!v.muted;
+  if(!v.muted){var pr=v.play();if(pr&&pr.catch)pr.catch(function(){})}
+  var on=!v.muted,b=$('snd');
+  b.classList.toggle('live',on);b.setAttribute('aria-pressed',on?'true':'false');b.setAttribute('aria-label',on?'Sesi kapat':'Sesi aç');
+  $('snd-on').style.display=on?'':'none';$('snd-off').style.display=on?'none':'';
+}
 function gateHtml(){
   var prev=$('who')?$('who').value:'';
   var logo='<svg viewBox="0 0 64 64" width="44" height="44" aria-hidden="true"><rect x="8" y="12" width="48" height="44" rx="10" fill="#fff" fill-opacity=".95"/><rect x="8" y="12" width="48" height="14" rx="10" fill="#fff" fill-opacity=".55"/><rect x="19" y="5" width="6" height="14" rx="3" fill="#fff"/><rect x="39" y="5" width="6" height="14" rx="3" fill="#fff"/><path d="M21 40l8 8 15-17" fill="none" stroke="#2f6bff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -415,6 +449,7 @@ function renderMain(){
   if(!ready){el.innerHTML='<div class="card empty">Yükleniyor…</div>';return}
   if((tab==='yon'||tab==='hrk')&&!admin)tab='gun';
   document.body.classList.toggle('gated',!me&&!admin);
+  syncVideo(!me&&!admin);
   if(!me&&!admin){el.innerHTML=gateHtml();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
   var h='';
@@ -742,6 +777,7 @@ document.addEventListener('click',function(e){
   e.preventDefault();run(b.dataset.a,b.dataset,b)});
 document.addEventListener('change',function(e){
   var s=e.target;if(s.tagName==='SELECT'&&s.dataset.a){var d=Object.assign({},s.dataset,{value:s.value});s.blur();run(s.dataset.a,d,s)}});
+document.addEventListener('click',function(e){if(e.target&&e.target.closest&&e.target.closest('#snd'))toggleSound()});
 document.addEventListener('input',function(e){
   if(e.target&&e.target.id==='logq'){logQ=e.target.value;logShow=200;renderMain();var q=$('logq');if(q){q.focus();var n=q.value.length;try{q.setSelectionRange(n,n)}catch(x){}}}
 });
