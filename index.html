@@ -115,24 +115,11 @@ ul.how{margin:6px 0 0;padding-left:18px}
 #nav button{flex:1;max-width:160px;border:0;background:transparent;border-radius:10px;padding:6px 2px;font-size:11.5px;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
 #nav button i{font-style:normal;font-size:20px;line-height:1}
 #nav button.on{color:var(--pri);background:var(--fld);font-weight:700}
-#bg{position:fixed;inset:0;z-index:-1;overflow:hidden;display:none;pointer-events:none}
+#bg{position:fixed;inset:0;z-index:-1;overflow:hidden;display:none;pointer-events:none;background:radial-gradient(120% 80% at 50% 0%,#1b2a5c,#0b1020 70%)}
 body.gated #bg{display:block}
-#bg .b{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;will-change:transform}
-#bg .b1{width:70vmax;height:70vmax;left:-25vmax;top:-20vmax;background:radial-gradient(circle,#4f8bff,transparent 65%);animation:fl1 19s ease-in-out infinite alternate}
-#bg .b2{width:60vmax;height:60vmax;right:-22vmax;top:10vh;background:radial-gradient(circle,#8a5cff,transparent 65%);animation:fl2 23s ease-in-out infinite alternate}
-#bg .b3{width:55vmax;height:55vmax;left:-10vmax;bottom:-25vmax;background:radial-gradient(circle,#2fd4b0,transparent 65%);animation:fl3 21s ease-in-out infinite alternate;opacity:.4}
-#bg .b4{width:40vmax;height:40vmax;right:5vmax;bottom:-12vmax;background:radial-gradient(circle,#ff8fb1,transparent 65%);animation:fl1 26s ease-in-out infinite alternate-reverse;opacity:.35}
-#bg .fl{position:absolute;bottom:-60px;font-size:26px;opacity:0;color:#2f6bff;animation:rise 16s linear infinite}
-#bg .f1{left:12%;animation-delay:0s}#bg .f2{left:30%;animation-delay:4s;font-size:30px}#bg .f3{left:55%;animation-delay:8s}#bg .f4{left:75%;animation-delay:2s;font-size:30px}#bg .f5{left:90%;animation-delay:11s;font-size:22px}
-@keyframes fl1{to{transform:translate(12vmax,10vmax) scale(1.15)}}
-@keyframes fl2{to{transform:translate(-14vmax,8vmax) scale(.9)}}
-@keyframes fl3{to{transform:translate(14vmax,-8vmax) scale(1.2)}}
-@keyframes rise{0%{transform:translateY(0) rotate(0);opacity:0}10%{opacity:.35}85%{opacity:.25}100%{transform:translateY(-115vh) rotate(25deg);opacity:0}}
-@media (prefers-reduced-motion:reduce){#bg .b,#bg .fl{animation:none}#bg .fl{display:none}}
-body.gated .gcard{background:color-mix(in srgb,var(--card) 80%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 #gv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0b1020;opacity:0;transition:opacity .8s}
 #gv.on{opacity:1}
-#gv.on~.b,#gv.on~.fl{display:none}
+
 .gshade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,10,24,.55),rgba(6,10,24,.35) 40%,rgba(6,10,24,.7))}
 #snd{display:none;position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(10,14,30,.5);color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);cursor:pointer;align-items:center;justify-content:center;padding:0;z-index:5}
 body.gated #snd{display:flex}
@@ -144,11 +131,10 @@ body.gated .gl{color:rgba(255,255,255,.72)}
 body.gated .gcard select,body.gated .gcard input{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff}
 body.gated .gcard input::placeholder{color:rgba(255,255,255,.5)}
 body.gated .gcard select option{color:#14213d;background:#fff}
-@media (prefers-reduced-motion:reduce){#gv{display:none}}
 </style>
 </head>
 <body>
-<div id="bg" aria-hidden="true"><video id="gv" muted loop playsinline webkit-playsinline preload="none" poster="giris-poster.jpg" disablepictureinpicture></video><div class="gshade"></div><i class="b b1"></i><i class="b b2"></i><i class="b b3"></i><i class="b b4"></i><span class="fl f1">✓</span><span class="fl f2">📅</span><span class="fl f3">✓</span><span class="fl f4">🗓️</span><span class="fl f5">✓</span></div>
+<div id="bg" aria-hidden="true"><video id="gv" muted loop playsinline webkit-playsinline preload="auto" disablepictureinpicture></video><div class="gshade"></div></div>
 <div class="top"><h1>Personel İzin</h1><span id="live" class="live off">○ Bağlanıyor…</span></div>
 <div id="err"></div>
 <section class="card" id="auth"></section>
@@ -238,11 +224,17 @@ function compute(){
 }
 
 /* ---------- ekran ---------- */
+function playGv(){var v=$('gv');if(!v||!document.body.classList.contains('gated'))return;v.muted=v.muted;var pr=v.play();if(pr&&pr.catch)pr.catch(function(){})}
 function syncVideo(on){
   var v=$('gv'),b=$('snd');if(!v)return;
   if(on){
-    if(!v.getAttribute('src')){v.src='giris.mp4';v.addEventListener('playing',function(){v.classList.add('on')},{once:true})}
-    var pr=v.play();if(pr&&pr.catch)pr.catch(function(){});
+    if(!v.getAttribute('src')){
+      v.defaultMuted=true;v.muted=true;
+      v.addEventListener('playing',function(){v.classList.add('on')});
+      v.addEventListener('loadeddata',playGv);v.addEventListener('canplay',playGv);
+      v.src='giris.mp4';
+    }
+    playGv();
   }else{
     try{v.pause();v.muted=true;v.classList.remove('on')}catch(e){}
     if(b){b.classList.remove('live');b.setAttribute('aria-pressed','false');$('snd-on').style.display='none';$('snd-off').style.display=''}
@@ -777,7 +769,9 @@ document.addEventListener('click',function(e){
   e.preventDefault();run(b.dataset.a,b.dataset,b)});
 document.addEventListener('change',function(e){
   var s=e.target;if(s.tagName==='SELECT'&&s.dataset.a){var d=Object.assign({},s.dataset,{value:s.value});s.blur();run(s.dataset.a,d,s)}});
-document.addEventListener('click',function(e){if(e.target&&e.target.closest&&e.target.closest('#snd'))toggleSound()});
+document.addEventListener('click',function(e){if(e.target&&e.target.closest&&e.target.closest('#snd')){toggleSound();return}var v=$('gv');if(v&&v.paused)playGv()});
+document.addEventListener('touchstart',function(){var v=$('gv');if(v&&v.paused)playGv()},{passive:true});
+document.addEventListener('visibilitychange',function(){if(!document.hidden)playGv()});
 document.addEventListener('input',function(e){
   if(e.target&&e.target.id==='logq'){logQ=e.target.value;logShow=200;renderMain();var q=$('logq');if(q){q.focus();var n=q.value.length;try{q.setSelectionRange(n,n)}catch(x){}}}
 });
