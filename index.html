@@ -250,6 +250,7 @@ function toggleSound(){
 }
 function gateHtml(){
   var prev=$('who')?$('who').value:'';
+  if(!prev){try{prev=localStorage.getItem('izin_last')||''}catch(e){}}
   var logo='<svg viewBox="0 0 64 64" width="44" height="44" aria-hidden="true"><rect x="8" y="12" width="48" height="44" rx="10" fill="#fff" fill-opacity=".95"/><rect x="8" y="12" width="48" height="14" rx="10" fill="#fff" fill-opacity=".55"/><rect x="19" y="5" width="6" height="14" rx="3" fill="#fff"/><rect x="39" y="5" width="6" height="14" rx="3" fill="#fff"/><path d="M21 40l8 8 15-17" fill="none" stroke="#2f6bff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   return '<div class="gate"><div class="glogo">'+logo+'</div><h2>Personel İzin</h2><p class="gsub">Haftalık izin seçimi</p>'+
   '<div class="gcard"><label class="gl" for="who">Adınız</label><select id="who"><option value="">Adınızı seçin…</option>'+staff.slice().sort(function(a,b){return a.name.localeCompare(b.name,'tr')}).map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>'+
@@ -517,7 +518,9 @@ function setRule(day,patch){var o=rules.get(day)||{day:day,quota:null,locked:fal
 function setLocal(staffId,day,type){
   if(!type)leaves.delete(staffId+'|'+day);
   else{var k=staffId+'|'+day,o=leaves.get(k);leaves.set(k,{staff_id:staffId,day:day,type:type,created_at:o?o.created_at:new Date().toISOString()})}}
-function saveMe(){try{if(me)localStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));else localStorage.removeItem('izin_me')}catch(e){}}
+/* Giriş yalnızca bu oturum boyunca (sekme/uygulama kapanana kadar) hatırlanır.
+   Uygulama ya da tarayıcı kapatılınca sessionStorage silinir ve kişi çıkış yapmış olur. */
+function saveMe(){try{if(me){sessionStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));localStorage.setItem('izin_last',String(me.id))}else sessionStorage.removeItem('izin_me');localStorage.removeItem('izin_me')}catch(e){}}
 function saveAdm(){try{if(admin&&!admin.viaStaff)sessionStorage.setItem('izin_adm',admin.pin);else sessionStorage.removeItem('izin_adm')}catch(e){}}
 
 var lastRes=[];
@@ -788,7 +791,8 @@ async function init(){
   if(!window.supabase){setErr('Supabase kütüphanesi yüklenemedi. İnternet bağlantınızı kontrol edip sayfayı yenileyin.');return}
   sb=window.supabase.createClient(CFG.URL,CFG.KEY,{realtime:{params:{eventsPerSecond:10}}});
   var sm=null,sa=null;
-  try{sm=JSON.parse(localStorage.getItem('izin_me')||'null')}catch(e){}
+  try{localStorage.removeItem('izin_me')}catch(e){}
+  try{sm=JSON.parse(sessionStorage.getItem('izin_me')||'null')}catch(e){}
   try{sa=sessionStorage.getItem('izin_adm')}catch(e){}
   await loadAll();
   if(sm&&sm.id&&sm.pin){var r=await rpc('staff_login',{p_staff:sm.id,p_pin:sm.pin},true);
