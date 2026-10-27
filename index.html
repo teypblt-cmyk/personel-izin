@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Personel İzin</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preload" href="giris.mp4" as="video" type="video/mp4">
 <style>
 :root{color-scheme:light dark;--bg:#f3f5fa;--card:#fff;--ink:#14213d;--mute:#667391;--line:#dde3f0;--fld:#eef2fa;--pri:#2f6bff;--onp:#fff;--ok:#128a5a;--okbg:#ddf5ea;--wait:#a86a00;--waitbg:#fff0cf;--fix:#6a30e6;--fixbg:#ece3ff;--bad:#d6455d;--me:#fff6bf}
 @media (prefers-color-scheme:dark){:root{--bg:#0b1020;--card:#151c33;--ink:#eef3ff;--mute:#9aa9c6;--line:#27304d;--fld:#1d2542;--pri:#5b8cff;--onp:#0b1020;--ok:#38d494;--okbg:#0f3a2d;--wait:#f2b705;--waitbg:#3b2f0b;--fix:#b497ff;--fixbg:#2a2150;--bad:#ef6a80;--me:#3a3410}}
@@ -134,7 +134,8 @@ body.gated .gcard select option{color:#14213d;background:#fff}
 </style>
 </head>
 <body>
-<div id="bg" aria-hidden="true"><video id="gv" muted loop playsinline webkit-playsinline preload="auto" disablepictureinpicture></video><div class="gshade"></div></div>
+<div id="bg" aria-hidden="true"><video id="gv" autoplay muted loop playsinline webkit-playsinline preload="auto" disablepictureinpicture></video><div class="gshade"></div></div>
+<script>(function(){try{var v=document.getElementById("gv");v.defaultMuted=true;v.muted=true;if(!sessionStorage.getItem("izin_me")&&!sessionStorage.getItem("izin_adm")){document.body.classList.add("gated");v.addEventListener("playing",function(){v.classList.add("on")});v.src="giris.mp4";v.load();var p=v.play();if(p&&p.catch)p.catch(function(){})}}catch(e){}})()</script>
 <div class="top"><h1>Personel İzin</h1><span id="live" class="live off">○ Bağlanıyor…</span></div>
 <div id="err"></div>
 <section class="card" id="auth"></section>
@@ -145,6 +146,7 @@ body.gated .gcard select option{color:#14213d;background:#fff}
 <div id="toast"></div>
 <noscript>Bu sayfa için JavaScript gerekli.</noscript>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
 'use strict';
@@ -231,12 +233,12 @@ function syncVideo(on){
     if(!v.getAttribute('src')){
       v.defaultMuted=true;v.muted=true;
       v.addEventListener('playing',function(){v.classList.add('on')});
-      v.addEventListener('loadeddata',playGv);v.addEventListener('canplay',playGv);
       v.src='giris.mp4';
     }
+    if(!v.__w){v.__w=1;v.addEventListener('loadeddata',playGv);v.addEventListener('canplay',playGv)}
     playGv();
   }else{
-    try{v.pause();v.muted=true;v.classList.remove('on')}catch(e){}
+    try{v.pause();v.muted=true}catch(e){}
     if(b){b.classList.remove('live');b.setAttribute('aria-pressed','false');$('snd-on').style.display='none';$('snd-off').style.display=''}
   }
 }
