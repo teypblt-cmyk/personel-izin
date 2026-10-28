@@ -114,6 +114,7 @@ table.pt{border-collapse:separate;border-spacing:0;table-layout:fixed;width:100%
 .stf{align-items:flex-start;flex-wrap:wrap;padding:9px 10px}
 .stf .nm2{flex:1 1 170px;min-width:0}
 .stf .nm2 .s{margin-top:2px}
+.wklk{min-width:96px;font-weight:700;color:var(--ok)}.wklk.on{color:var(--bad);border-color:var(--bad)}
 .bell{border:0;background:transparent;font-size:17px;line-height:1;padding:2px 4px;cursor:pointer;vertical-align:middle;opacity:.55}.bell.on{opacity:1}
 .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
 #err{display:none;background:var(--waitbg);color:var(--wait);border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:14px}
@@ -447,9 +448,11 @@ function weekLists(){
   }
   return h;
 }
+function wkBtn(){var all=true;for(var i=0;i<7;i++){var r=rules.get(dstr(week+i));if(!(r&&r.locked))all=false}
+  return all?'<button class="btn s wklk on" data-a="lockweek" data-v="0" aria-pressed="true">🔒 Kilitli</button>':'<button class="btn s wklk" data-a="lockweek" data-v="1" aria-pressed="false">🔓 Açık</button>'}
 function adminTab(){
   var st={};statusList.forEach(function(x){st[x.id]=x});
-  var h=weekHead()+'<div class="card"><div class="sub"><span class="ic i1">🔒</span>Hafta Kilidi</div><div class="row"><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+'</span><div class="sp"></div><button class="btn s" data-a="lockweek" data-v="1">🔒 Haftayı Kilitle</button><button class="btn s" data-a="lockweek" data-v="0">Kilidi Aç</button></div></div>';
+  var h=weekHead()+'<div class="card"><div class="sub"><span class="ic i1">🔒</span>Hafta Kilidi</div><div class="row"><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+'</span><div class="sp"></div>'+wkBtn()+'</div></div>';
   h+=excCard();
   h+='<details class="card acc" id="stfbox"'+(staffOpen?' open':'')+'><summary><span class="ic i3">👥</span><b>Personel, PIN Ve Yetki</b><span class="mute s"> · '+staff.length+' Kişi</span></summary>'+staff.map(function(s){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')):'Durum yükleniyor…';
