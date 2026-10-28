@@ -290,12 +290,11 @@ function renderAuth(){
   if(!me&&!admin){el.style.display='none';el.innerHTML='';return}
   el.style.display='';
   if(me){
-    if(me.id===PUSHID&&pushOk())h+='<div class="row"><div class="sp"></div><button class="btn s" data-a="pushtog">'+(pushMine?'🔕 Bildirimi kapat':'🔔 Bildirimi aç')+'</button></div>';
   }else{
     h+='<div class="login"><select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN"><button class="btn pri" data-a="login">Giriş</button></div>';
   }
   if(admin){
-    h+='<div class="row adminbar"><b>🛠 '+(admin.viaStaff?'Yönetici yetkiniz açık':'Yönetici modu açık')+'</b><div class="sp"></div><button class="btn s pdfb" data-a="export-pdf" title="Seçili haftanın PDF listesini hazırla ve gönder"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5L13 3.5z"/><text x="12" y="19" font-size="6.5" font-weight="800" text-anchor="middle" fill="#fff">PDF</text></svg> PDF Gönder</button></div>';
+    h+='<div class="row adminbar"><b>🛠 '+(admin.viaStaff?'Yönetici yetkiniz açık':'Yönetici modu açık')+'</b><div class="sp"></div>'+(meAdm()&&pushOk()?'<button class="btn s" data-a="pushtog" title="Mazeret geldiğinde bildirim al">'+(pushMine?'🔕 Bildirim Açık':'🔔 Bildirim Al')+'</button>':'')+'<button class="btn s pdfb" data-a="export-pdf" title="Seçili haftanın PDF listesini hazırla ve gönder"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5L13 3.5z"/><text x="12" y="19" font-size="6.5" font-weight="800" text-anchor="middle" fill="#fff">PDF</text></svg> PDF Gönder</button></div>';
   }
   el.style.display=h?'':'none';el.innerHTML=h;
 }
@@ -453,7 +452,7 @@ function adminTab(){
   h+=excCard();
   h+='<details class="card acc" id="stfbox"'+(staffOpen?' open':'')+'><summary><span class="ic i3">👥</span><b>Personel, PIN Ve Yetki</b><span class="mute s"> · '+staff.length+' Kişi</span></summary>'+staff.map(function(s){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')):'Durum yükleniyor…';
-    return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns">'+((s.id===OWNER_ID&&!(me&&me.id===OWNER_ID))?'<span class="mute s">🔒 Yalnızca kendisi değiştirebilir</span>':'<button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN Sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği Kaldır':'Yönetici Yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button>'+(s.id===PUSHID?'<button class="btn s" data-a="pushsend" data-id="'+s.id+'"'+(pushIds.indexOf(s.id)<0?' disabled title="Kişi bildirimi açmamış"':'')+'>🔔 Bildirim Gönder'+(pushIds.indexOf(s.id)<0?' (Kapalı)':'')+'</button>':'')+(isTop(s)?'<button class="btn s star'+(s.exempt?' on':'')+'" data-a="exempt" data-id="'+s.id+'" data-v="'+(s.exempt?0:1)+'" title="Kontenjana takılmadan izin seçsin" aria-pressed="'+(s.exempt?'true':'false')+'">'+(s.exempt?'★':'☆')+'</button>':''))+'</div></div>'}).join('');
+    return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns">'+((s.id===OWNER_ID&&!(me&&me.id===OWNER_ID))?'<span class="mute s">🔒 Yalnızca kendisi değiştirebilir</span>':'<button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN Sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği Kaldır':'Yönetici Yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button>'+(isTop(s)?'<button class="btn s star'+(s.exempt?' on':'')+'" data-a="exempt" data-id="'+s.id+'" data-v="'+(s.exempt?0:1)+'" title="Kontenjana takılmadan izin seçsin" aria-pressed="'+(s.exempt?'true':'false')+'">'+(s.exempt?'★':'☆')+'</button>':''))+'</div></div>'}).join('');
   h+='<div class="sub"><span class="ic i6">➕</span>Yeni Personel Ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik geçici PIN verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn grn" data-a="addstaff">＋ Ekle</button><pre id="pinout" class="pinout"></pre></details>';
   h+=weekLists();
   h+=
@@ -518,7 +517,6 @@ async function loadStatus(norender){
   var r=await rpc('admin_staff_status',{p_pin:admin.pin},true);
   if(r&&r.ok){statusList=r.list;if(!norender&&tab==='yon')scheduleRender()}
   var er=await rpc('admin_list_excuses',{p_pin:admin.pin},true);if(er&&er.ok){exList=er.list;if(!norender&&tab==='yon')scheduleRender()}
-  var pr=await rpc('admin_push_status',{p_pin:admin.pin},true);if(pr&&pr.ok){pushIds=pr.ids;if(!norender&&tab==='yon')scheduleRender()}
 }
 async function loadAll(){
   try{
@@ -553,10 +551,10 @@ function subscribe(){
 function poll(){setTimeout(function(){if(document.visibilityState==='visible')loadAll();poll()},live?60000:10000)}
 
 /* ---------- işlemler ---------- */
-var PUSHID=8,VAPID='BDSmpRvmwCkYQz7tAK-WwJ0PYT1tKYtZA74zrFWoNvUBto5HgY99xuAietbDRrSRpbyQwpOMVBy1jSzAZFWex20',pushIds=[],pushMine=false;
+var VAPID='BDSmpRvmwCkYQz7tAK-WwJ0PYT1tKYtZA74zrFWoNvUBto5HgY99xuAietbDRrSRpbyQwpOMVBy1jSzAZFWex20',pushMine=false;
 function pushOk(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
 function b64u(v){var p='='.repeat((4-v.length%4)%4),b=atob((v+p).replace(/-/g,'+').replace(/_/g,'/')),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}
-async function pushCheck(){if(!pushOk()||!me||me.id!==PUSHID){pushMine=false;return}
+async function pushCheck(){if(!pushOk()||!me||!meAdm()){pushMine=false;return}
   try{var reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();var n=!!sub&&Notification.permission==='granted';if(n!==pushMine){pushMine=n;renderAll()}}catch(e){}}
 async function pushToggle(){
   if(!pushOk()){toast('Bu tarayıcı bildirimi desteklemiyor. iPhone\'da önce uygulamayı ana ekrana ekleyin.',1);return}
@@ -566,9 +564,7 @@ async function pushToggle(){
   try{sub=sub||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID)})}catch(e){toast('Bildirim açılamadı',1);return}
   var r=await rpc('staff_push_save',{p_staff:me.id,p_pin:me.pin,p_sub:JSON.parse(JSON.stringify(sub))});
   if(r&&r.ok){pushMine=true;renderAll();toast('🔔 Bildirim açıldı')}}
-async function pushSend(id){
-  try{var res=await fetch(CFG.URL+'/functions/v1/send-push',{method:'POST',headers:{'Content-Type':'application/json',apikey:CFG.KEY},body:JSON.stringify({admin_pin:admin.pin,staff_id:id,text:'İzin talebiniz için uygulamaya bakın'})});
-    var j=await res.json();toast(j.ok?'🔔 Bildirim gönderildi':(j.error||'Gönderilemedi'),!j.ok)}catch(e){toast('Bağlantı hatası',1)}}
+function pushExcuse(){try{fetch(CFG.URL+'/functions/v1/send-push',{method:'POST',headers:{'Content-Type':'application/json',apikey:CFG.KEY},body:JSON.stringify({staff_id:me.id,pin:me.pin})}).catch(function(){})}catch(e){}}
 async function rpc(fn,args,silent){
   var r=await sb.rpc(fn,args);
   if(r.error){if(!silent)toast('Bağlantı hatası: '+r.error.message,1);return null}
@@ -797,11 +793,10 @@ async function act(a,d,el){
     case 'excsend':{var tx=$('exctxt'),dy=$('excday');excDraft=tx?tx.value:excDraft;
       if(!excDraft.trim()){toast('Mazeretinizi yazın',1);break}
       r=await rpc('staff_add_excuse',{p_staff:me.id,p_pin:me.pin,p_day:(dy&&dy.value)||null,p_txt:excDraft});
-      if(r&&r.ok){excDraft='';excDay='';renderMain();toast('Mazeretiniz yöneticilere iletildi')}
+      if(r&&r.ok){excDraft='';excDay='';renderMain();toast('Mazeretiniz yöneticilere iletildi');pushExcuse()}
       break}
     case 'excdone':{r=await rpc('admin_excuse_done',{p_pin:admin.pin,p_id:+d.id,p_done:d.v==='1'});if(r&&r.ok)loadStatus();break}
     case 'pushtog':await pushToggle();break;
-    case 'pushsend':await pushSend(+d.id);break;
     case 'exempt':{
       var s5=staffById[d.id],on5=d.v==='1';if(!s5)break;
       if(!confirm(on5?s5.name+' kontenjana takılmadan izin seçebilsin mi?':s5.name+' için bu yetki kapatılsın mı?'))break;
