@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="theme-color" content="#f3f5fa" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#eef1fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#050507" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="İzin">
@@ -16,8 +16,8 @@
 <title>Personel İzin</title>
 <link rel="preload" href="giris.mp4" as="video" type="video/mp4">
 <style>
-:root{color-scheme:light dark;--bg:#f3f3f3;--card:#fbfbfb;--ink:#1a1a1a;--mute:#5f5f5f;--line:#e3e3e3;--fld:#f6f6f6;--pri:#0067c0;--onp:#fff;--ok:#0f7b0f;--okbg:#dff6dd;--wait:#9d5d00;--waitbg:#fff4ce;--fix:#5b3fb0;--fixbg:#ebe6fb;--bad:#c42b1c;--me:#fff4ce;--sh:0 1px 2px rgba(0,0,0,.05),0 2px 6px rgba(0,0,0,.04);--rad:8px}
-@media (prefers-color-scheme:dark){:root{--bg:#202020;--card:#2c2c2c;--ink:#ffffff;--mute:#b4b4b4;--line:#3d3d3d;--fld:#363636;--pri:#60cdff;--onp:#00263a;--ok:#6ccb5f;--okbg:#1f3b1d;--wait:#fce100;--waitbg:#433519;--fix:#c5b3f5;--fixbg:#352c55;--bad:#ff99a4;--me:#433519;--sh:0 1px 2px rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.25)}}
+:root{color-scheme:light dark;--bg:#eef1fb;--card:rgba(255,255,255,.78);--ink:#12141f;--mute:#5b6280;--line:rgba(40,50,110,.12);--fld:rgba(70,80,160,.07);--pri:#2563eb;--onp:#fff;--ok:#0f7b45;--okbg:#d8f5e6;--wait:#9a5b00;--waitbg:#fff0cc;--fix:#6d3fd0;--fixbg:#ece4ff;--bad:#c62b3f;--me:#fff1c2;--sh:0 1px 2px rgba(20,30,90,.06),0 8px 24px -12px rgba(40,60,160,.25);--rad:12px;--grad:linear-gradient(135deg,#2f7bff,#5b5cf0 55%,#a04cf0);--spec:linear-gradient(90deg,#2f7bff,#17b6a6,#3dc46a,#f2b81c,#ef6a3a,#c24ad6,#7a5af0)}
+@media (prefers-color-scheme:dark){:root{--bg:#050507;--card:rgba(22,23,32,.74);--ink:#f5f6fb;--mute:#a4a9c2;--line:rgba(255,255,255,.09);--fld:rgba(255,255,255,.06);--pri:#6aa8ff;--onp:#fff;--ok:#5fd68a;--okbg:rgba(60,190,120,.16);--wait:#f7c948;--waitbg:rgba(247,201,72,.14);--fix:#c4adff;--fixbg:rgba(150,110,255,.18);--bad:#ff8a9b;--me:rgba(247,201,72,.14);--sh:0 1px 0 rgba(255,255,255,.04) inset,0 14px 34px -18px rgba(0,0,0,.9);--grad:linear-gradient(135deg,#2f7bff,#6a5cff 55%,#b04cf5)}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0 auto;max-width:640px;min-height:100vh;padding:calc(10px + env(safe-area-inset-top,0px)) 12px calc(86px + env(safe-area-inset-bottom,0px));background:var(--bg);color:var(--ink);font:15px/1.4 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
@@ -141,6 +141,44 @@ body.gated .gl{color:rgba(255,255,255,.72)}
 body.gated .gcard select,body.gated .gcard input{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff}
 body.gated .gcard input::placeholder{color:rgba(255,255,255,.5)}
 body.gated .gcard select option{color:#14213d;background:#fff}
+
+/* ---- Bloom teması: siyah zemin, mavi-yeşil-sarı-kırmızı-mor tayf ---- */
+html{background:var(--bg)}
+body{background:
+ radial-gradient(60% 40% at 8% 0%,rgba(47,123,255,.30),transparent 70%),
+ radial-gradient(55% 40% at 100% 18%,rgba(160,76,240,.22),transparent 70%),
+ radial-gradient(70% 45% at 50% 105%,rgba(23,182,166,.18),transparent 70%),
+ var(--bg);background-attachment:fixed}
+@media (prefers-color-scheme:light){body{background:
+ radial-gradient(60% 40% at 8% 0%,rgba(47,123,255,.16),transparent 70%),
+ radial-gradient(55% 40% at 100% 18%,rgba(160,76,240,.12),transparent 70%),
+ radial-gradient(70% 45% at 50% 105%,rgba(23,182,166,.12),transparent 70%),var(--bg);background-attachment:fixed}}
+h1{background:var(--spec);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800;letter-spacing:-.2px}
+.card,.dp,.p,#nav{-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3)}
+.card{border-radius:var(--rad)}
+.btn{background:var(--fld);border:1px solid var(--line)}
+.btn:hover{background:var(--line)}
+.btn.pri,.btn.grn{background:var(--grad);color:#fff;border:0;box-shadow:0 6px 16px -8px rgba(80,90,240,.8)}
+.btn.grn{background:linear-gradient(135deg,#17a98f,#2fbf6a)}
+.addsum{background:linear-gradient(135deg,#17a98f,#2fbf6a);color:#fff;border:0}
+.pdfb{background:linear-gradient(135deg,#ef6a3a,#d93a5c);border:0;color:#fff}
+.dp.on{background:var(--grad);border-color:transparent;box-shadow:0 8px 20px -10px rgba(90,90,240,.9)}
+.dp.td:not(.on){border-color:var(--pri)}
+#nav button.on::after{width:26px;margin-left:-13px;height:3px;background:var(--spec)}
+.wk .wt b{background:var(--spec);-webkit-background-clip:text;background-clip:text;color:transparent}
+.bar{background:var(--spec)}
+.adminbar{background:var(--fixbg);color:var(--fix);border:1px solid var(--line)}
+.ic{color:#fff;box-shadow:0 6px 14px -8px rgba(0,0,0,.6)}
+.i1{background:linear-gradient(135deg,#ef6a3a,#d93a5c)}.i2{background:linear-gradient(135deg,#f2b81c,#ef8a3a)}.i3{background:linear-gradient(135deg,#2f7bff,#5b5cf0)}.i4{background:linear-gradient(135deg,#17b6a6,#2f9bff)}.i5{background:linear-gradient(135deg,#7a5af0,#c24ad6)}.i6{background:linear-gradient(135deg,#3dc46a,#17b6a6)}.i7{background:linear-gradient(135deg,#6b7391,#3e4560)}
+@media (prefers-color-scheme:dark){.i1,.i2,.i3,.i4,.i5,.i6,.i7{background-blend-mode:normal}.addsum,.btn.grn{color:#fff;border:0}}
+.chip{background:var(--fld);border:1px solid var(--line)}
+.tag.ok{background:var(--okbg)}.tag.wait{background:var(--waitbg)}.tag.fix{background:var(--fixbg)}
+.card.inst{border-color:var(--pri)}
+.gcard{background:var(--card);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px)}
+select,input,textarea{background:var(--fld);border:1px solid var(--line);border-bottom:2px solid rgba(128,128,160,.55)}
+select:focus,input:focus,textarea:focus{border-bottom-color:var(--pri);box-shadow:0 8px 18px -12px var(--pri)}
+select option{color:#111;background:#fff}
+@media (prefers-color-scheme:dark){select option{color:#f5f6fb;background:#1b1c27}}
 </style>
 </head>
 <body>
