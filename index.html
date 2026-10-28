@@ -279,7 +279,7 @@ function renderAuth(){
   if(!me&&!admin){el.style.display='none';el.innerHTML='';return}
   el.style.display='';
   if(me){
-    h+='<div class="row"><div><b>'+esc(me.name)+'</b> <span class="mute s">giriş yapıldı</span></div><div class="sp"></div><button class="btn s" data-a="pinchg">PIN</button><button class="btn s" data-a="logout">Çıkış</button></div>';
+    h+='<div class="row"><div><b>'+esc(me.name)+'</b> <span class="mute s">giriş yapıldı</span></div><div class="sp"></div>'+(me.id===PUSHID&&pushOk()?'<button class="btn s" data-a="pushtog">'+(pushMine?'🔕 Bildirimi kapat':'🔔 Bildirimi aç')+'</button>':'')+'<button class="btn s" data-a="pinchg">PIN</button><button class="btn s" data-a="logout">Çıkış</button></div>';
   }else{
     h+='<div class="login"><select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN"><button class="btn pri" data-a="login">Giriş</button></div>';
   }
@@ -438,7 +438,7 @@ function adminTab(){
   var h=weekHead()+'<div class="card"><div class="sub">Hafta kilidi</div><div class="row"><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+'</span><div class="sp"></div><button class="btn s" data-a="lockweek" data-v="1">🔒 Haftayı kilitle</button><button class="btn s" data-a="lockweek" data-v="0">Kilidi aç</button></div></div>';
   h+='<details class="card acc" id="stfbox"'+(staffOpen?' open':'')+'><summary><b>Personel, PIN ve yetki</b><span class="mute s"> · '+staff.length+' kişi</span></summary><div class="mute s" style="margin:8px 0">PIN\'ler şifreli saklanır, kimse okuyamaz. Unutan olursa "PIN belirle" ile geçici PIN verin, kişi girişte kendi PIN\'ini yeniden belirler.</div>'+staff.map(function(s){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')):'Durum yükleniyor…';
-    return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns">'+((s.id===OWNER_ID&&!(me&&me.id===OWNER_ID))?'<span class="mute s">🔒 Yalnızca kendisi değiştirebilir</span>':'<button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği kaldır':'Yönetici yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button>'+(isTop(s)?'<button class="btn s star'+(s.exempt?' on':'')+'" data-a="exempt" data-id="'+s.id+'" data-v="'+(s.exempt?0:1)+'" title="Kontenjana takılmadan izin seçsin" aria-pressed="'+(s.exempt?'true':'false')+'">'+(s.exempt?'★':'☆')+'</button>':''))+'</div></div>'}).join('');
+    return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns">'+((s.id===OWNER_ID&&!(me&&me.id===OWNER_ID))?'<span class="mute s">🔒 Yalnızca kendisi değiştirebilir</span>':'<button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği kaldır':'Yönetici yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button>'+(s.id===PUSHID?'<button class="btn s" data-a="pushsend" data-id="'+s.id+'"'+(pushIds.indexOf(s.id)<0?' disabled title="Kişi bildirimi açmamış"':'')+'>🔔 Bildirim gönder'+(pushIds.indexOf(s.id)<0?' (kapalı)':'')+'</button>':'')+(isTop(s)?'<button class="btn s star'+(s.exempt?' on':'')+'" data-a="exempt" data-id="'+s.id+'" data-v="'+(s.exempt?0:1)+'" title="Kontenjana takılmadan izin seçsin" aria-pressed="'+(s.exempt?'true':'false')+'">'+(s.exempt?'★':'☆')+'</button>':''))+'</div></div>'}).join('');
   h+='<div class="sub">Yeni personel ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik geçici PIN verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn pri" data-a="addstaff">Ekle</button><pre id="pinout" class="pinout"></pre></details>';
   h+=weekLists();
   h+='<div class="card"><div class="sub">Haftanın listesi (PDF)</div><div class="mute s" style="margin-bottom:8px">Seçili haftanın çizelgesini tek sayfa PDF yapar ve paylaşma penceresini açar. Pencerede WhatsApp\'ı seçin.</div><div class="row"><button class="btn pri" data-a="export-pdf">PDF hazırla ve gönder</button></div></div>'+
@@ -490,6 +490,7 @@ async function loadStatus(norender){
   if(!admin)return;
   var r=await rpc('admin_staff_status',{p_pin:admin.pin},true);
   if(r&&r.ok){statusList=r.list;if(!norender&&tab==='yon')scheduleRender()}
+  var pr=await rpc('admin_push_status',{p_pin:admin.pin},true);if(pr&&pr.ok){pushIds=pr.ids;if(!norender&&tab==='yon')scheduleRender()}
 }
 async function loadAll(){
   try{
@@ -524,6 +525,22 @@ function subscribe(){
 function poll(){setTimeout(function(){if(document.visibilityState==='visible')loadAll();poll()},live?60000:10000)}
 
 /* ---------- işlemler ---------- */
+var PUSHID=8,VAPID='BDSmpRvmwCkYQz7tAK-WwJ0PYT1tKYtZA74zrFWoNvUBto5HgY99xuAietbDRrSRpbyQwpOMVBy1jSzAZFWex20',pushIds=[],pushMine=false;
+function pushOk(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
+function b64u(v){var p='='.repeat((4-v.length%4)%4),b=atob((v+p).replace(/-/g,'+').replace(/_/g,'/')),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}
+async function pushCheck(){if(!pushOk()||!me||me.id!==PUSHID){pushMine=false;return}
+  try{var reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();var n=!!sub&&Notification.permission==='granted';if(n!==pushMine){pushMine=n;renderAll()}}catch(e){}}
+async function pushToggle(){
+  if(!pushOk()){toast('Bu tarayıcı bildirimi desteklemiyor. iPhone\'da önce uygulamayı ana ekrana ekleyin.',1);return}
+  var reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
+  if(sub&&pushMine){await rpc('staff_push_save',{p_staff:me.id,p_pin:me.pin,p_sub:null});try{await sub.unsubscribe()}catch(e){}pushMine=false;renderAll();toast('Bildirim kapatıldı');return}
+  var perm=await Notification.requestPermission();if(perm!=='granted'){toast('Bildirim izni verilmedi',1);return}
+  try{sub=sub||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID)})}catch(e){toast('Bildirim açılamadı',1);return}
+  var r=await rpc('staff_push_save',{p_staff:me.id,p_pin:me.pin,p_sub:JSON.parse(JSON.stringify(sub))});
+  if(r&&r.ok){pushMine=true;renderAll();toast('🔔 Bildirim açıldı')}}
+async function pushSend(id){
+  try{var res=await fetch(CFG.URL+'/functions/v1/send-push',{method:'POST',headers:{'Content-Type':'application/json',apikey:CFG.KEY},body:JSON.stringify({admin_pin:admin.pin,staff_id:id,text:'İzin talebiniz için uygulamaya bakın'})});
+    var j=await res.json();toast(j.ok?'🔔 Bildirim gönderildi':(j.error||'Gönderilemedi'),!j.ok)}catch(e){toast('Bağlantı hatası',1)}}
 async function rpc(fn,args,silent){
   var r=await sb.rpc(fn,args);
   if(r.error){if(!silent)toast('Bağlantı hatası: '+r.error.message,1);return null}
@@ -535,7 +552,7 @@ function setLocal(staffId,day,type){
   else{var k=staffId+'|'+day,o=leaves.get(k);leaves.set(k,{staff_id:staffId,day:day,type:type,created_at:o?o.created_at:new Date().toISOString()})}}
 /* Giriş yalnızca bu oturum boyunca (sekme/uygulama kapanana kadar) hatırlanır.
    Uygulama ya da tarayıcı kapatılınca sessionStorage silinir ve kişi çıkış yapmış olur. */
-function saveMe(){try{if(me){sessionStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));localStorage.setItem('izin_last',String(me.id))}else sessionStorage.removeItem('izin_me');localStorage.removeItem('izin_me')}catch(e){}}
+function saveMe(){try{if(me){sessionStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));localStorage.setItem('izin_last',String(me.id))}else sessionStorage.removeItem('izin_me');localStorage.removeItem('izin_me')}catch(e){}pushCheck()}
 function saveAdm(){try{if(admin&&!admin.viaStaff)sessionStorage.setItem('izin_adm',admin.pin);else sessionStorage.removeItem('izin_adm')}catch(e){}}
 
 var lastRes=[];
@@ -749,6 +766,8 @@ async function act(a,d,el){
       r=await rpc('admin_reset_pin',{p_pin:admin.pin,p_staff:+d.id,p_new:'0000'});
       if(r&&r.ok){await loadStatus();toast(r.name+' PIN\'i 0000 yapıldı')}
       break}
+    case 'pushtog':await pushToggle();break;
+    case 'pushsend':await pushSend(+d.id);break;
     case 'exempt':{
       var s5=staffById[d.id],on5=d.v==='1';if(!s5)break;
       if(!confirm(on5?s5.name+' kontenjana takılmadan izin seçebilsin mi?':s5.name+' için bu yetki kapatılsın mı?'))break;
