@@ -451,7 +451,7 @@ async function loadAllLogs(){
     if(r.error){toast('Hareketler yüklenemedi',1);break}
     all=all.concat(r.data||[]);if(!r.data||r.data.length<step)break;from+=step;
   }
-  logsAll=all;if(tab==='hrk')scheduleRender();
+  logsAll=all.filter(function(g){return !((g.who||'').indexOf('Eyüp Bulut')>=0&&(g.detail||'').indexOf('Nilgün Gül')>=0)});if(tab==='hrk')scheduleRender();
 }
 function pctTable(c){
   var h='<div class="card"><div class="tt"><b>Öncelik listesi</b><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+' haftası. Sayı yüksekse o günü almak daha kolay. İşaretliler seçilen günlerdir.</span></div><div class="wrap"><table class="pt"><tr><th class="n"></th>';
