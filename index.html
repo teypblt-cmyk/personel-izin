@@ -281,7 +281,7 @@ function renderAuth(){
   if(!me&&!admin){el.style.display='none';el.innerHTML='';return}
   el.style.display='';
   if(me){
-    h+='<div class="row"><div><b>'+esc(me.name)+'</b> <span class="mute s">Giriş yapıldı</span></div><div class="sp"></div>'+(me.id===PUSHID&&pushOk()?'<button class="btn s" data-a="pushtog">'+(pushMine?'🔕 Bildirimi kapat':'🔔 Bildirimi aç')+'</button>':'')+'</div>';
+    if(me.id===PUSHID&&pushOk())h+='<div class="row"><div class="sp"></div><button class="btn s" data-a="pushtog">'+(pushMine?'🔕 Bildirimi kapat':'🔔 Bildirimi aç')+'</button></div>';
   }else{
     h+='<div class="login"><select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN"><button class="btn pri" data-a="login">Giriş</button></div>';
   }
@@ -459,7 +459,7 @@ function excuseBox(){
   if(!me||meAdm()||isTop(staffById[me.id]||{}))return '';
   var tn=todayNum(),o='<option value="">Genel (belirli bir gün yok)</option>';
   for(var i=0;i<7;i++){var dn=week+i;if(dn<tn)continue;var ds=dstr(dn);o+='<option value="'+ds+'"'+(ds===excDay?' selected':'')+'>'+DAYS[i]+' · '+dLabel(dn)+'</option>'}
-  return '<div class="card"><div class="sub">Mazeret bildir</div><div class="mute s">Yazdığınızı yalnızca yöneticiler görür.</div><select id="excday" style="width:100%;margin-top:8px">'+o+'</select><textarea id="exctxt" maxlength="400" placeholder="Mazeretinizi yazın…">'+esc(excDraft)+'</textarea><button class="btn pri big" data-a="excsend">Gönder</button></div>'}
+  return '<div class="card"><div class="sub">Mazeret Bildir</div><div class="mute s">Yazdığınızı yalnızca yöneticiler görür.</div><select id="excday" style="width:100%;margin-top:8px">'+o+'</select><textarea id="exctxt" maxlength="400" placeholder="Mazeretinizi yazın…">'+esc(excDraft)+'</textarea><button class="btn pri big" data-a="excsend">Gönder</button></div>'}
 function excCard(){
   var open=exList.filter(function(e){return !e.done}),dn=exList.filter(function(e){return e.done});
   function it(e){return '<div class="p"><div style="flex:1"><b>'+esc(e.name)+'</b> <span class="mute s">'+(e.day?esc(dLabel(Math.round(Date.parse(e.day+'T00:00:00Z')/864e5))):'Genel')+' · '+fmtAt(e.at)+'</span><div class="s">'+esc(e.txt)+'</div></div><button class="btn s" data-a="excdone" data-id="'+e.id+'" data-v="'+(e.done?0:1)+'">'+(e.done?'Geri al':'✓ Tamam')+'</button></div>'}
