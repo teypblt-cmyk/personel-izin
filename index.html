@@ -351,7 +351,7 @@ function dayCard(i,pct,r){
     var own=leaves.get(me.id+'|'+r.ds);
     if(own&&own.type!=='I'){/* yönetici belirlemiş, listede görünüyor */}
     else if(past)h+='<div class="note">Geçmiş gün, değiştirilemez</div>';
-    else if(r.locked)h+='<div class="note">🔒 Bu gün kilitli, değişiklik için yöneticiye yazın</div>';
+    else if(r.locked&&!(staffById[me.id]&&staffById[me.id].exempt))h+='<div class="note">🔒 Bu gün kilitli, değişiklik için yöneticiye yazın</div>';
     else if(own)h+='<button class="btn out big" data-a="toggle" data-day="'+r.ds+'" data-on="0">Vazgeç</button>';
     else if(myWeekCount()>=MAXW)h+='<div class="note">Bu hafta en fazla '+MAXW+' gün izin seçebilirsiniz. Başka bir gün için önce birinden vazgeçin.</div>';
     else if(weekNormals()>=WEEKCAP)h+='<div class="note">Bu haftanın '+WEEKCAP+' izin hakkı doldu.</div>';
