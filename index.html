@@ -437,19 +437,21 @@ function weekLists(){
   var c=compute(),h='',none=[],wait=[];
   staff.forEach(function(s){var any=false;for(var i=0;i<7;i++)if(leaves.get(s.id+'|'+dstr(week+i)))any=true;if(!any)none.push(s)});
   for(var d=0;d<7;d++)c.res[d].wait.forEach(function(l){wait.push({d:d,l:l})});
-  h+='<div class="card"><div class="sub"><span class="ic i4">⏳</span>Onay Bekleyenler <span class="mute s">· '+wait.length+' Kişi</span></div><div class="mute s" style="margin-bottom:8px">Seçti ama kontenjan dolduğu için sırada bekleyenler. '+dLabel(week)+' – '+dLabel(week+6)+'</div>'+(wait.length?'<button class="btn pri" data-a="assign" style="margin-bottom:8px">Hepsini Boş Günlere Ata</button>':'');
-  if(!wait.length)h+='<div class="empty">Bekleyen yok</div>';
-  else wait.forEach(function(w){var sid=w.l.staff_id,sn=staffById[sid];h+='<div class="p"><span class="nm">'+esc(sn?sn.name:'?')+'</span><span class="mute s">'+DAYS[w.d]+' · öncelik '+c.pct[sid][w.d]+'</span></div>'});
-  h+='</div><div class="card"><div class="sub"><span class="ic i5">🙈</span>Bu Hafta İzin Seçmeyenler <span class="mute s">· '+none.length+' Kişi</span></div><div class="mute s" style="margin-bottom:8px">Hiçbir gün seçmemiş olanlar.</div>';
-  if(!none.length)h+='<div class="empty">Herkes seçti</div>';
-  else h+='<div class="chips">'+none.map(function(s){return '<span class="chip">'+esc(s.name)+'</span>'}).join('')+'</div>';
-  return h+'</div>';
+  if(wait.length){
+    h+='<div class="card"><div class="sub"><span class="ic i4">⏳</span>Onay Bekleyenler <span class="mute s">· '+wait.length+' Kişi</span></div><button class="btn pri" data-a="assign" style="margin-bottom:8px">Hepsini Boş Günlere Ata</button>';
+    wait.forEach(function(w){var sid=w.l.staff_id,sn=staffById[sid];h+='<div class="p"><span class="nm">'+esc(sn?sn.name:'?')+'</span><span class="mute s">'+DAYS[w.d]+' · Öncelik '+c.pct[sid][w.d]+'</span></div>'});
+    h+='</div>';
+  }
+  if(none.length){
+    h+='<div class="card"><div class="sub"><span class="ic i5">👤</span>Bu Hafta İzin Seçmeyenler <span class="mute s">· '+none.length+' Kişi</span></div><div class="chips">'+none.map(function(s){return '<span class="chip">'+esc(s.name)+'</span>'}).join('')+'</div></div>';
+  }
+  return h;
 }
 function adminTab(){
   var st={};statusList.forEach(function(x){st[x.id]=x});
   var h=weekHead()+'<div class="card"><div class="sub"><span class="ic i1">🔒</span>Hafta Kilidi</div><div class="row"><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+'</span><div class="sp"></div><button class="btn s" data-a="lockweek" data-v="1">🔒 Haftayı Kilitle</button><button class="btn s" data-a="lockweek" data-v="0">Kilidi Aç</button></div></div>';
   h+=excCard();
-  h+='<details class="card acc" id="stfbox"'+(staffOpen?' open':'')+'><summary><span class="ic i3">👥</span><b>Personel, PIN Ve Yetki</b><span class="mute s"> · '+staff.length+' Kişi</span></summary><div class="mute s" style="margin:8px 0">PIN\'ler şifreli saklanır, kimse okuyamaz. Unutan olursa "PIN sıfırla" ile PIN 0000 olur, kişi girişte kendi PIN\'ini yeniden belirler.</div>'+staff.map(function(s){
+  h+='<details class="card acc" id="stfbox"'+(staffOpen?' open':'')+'><summary><span class="ic i3">👥</span><b>Personel, PIN Ve Yetki</b><span class="mute s"> · '+staff.length+' Kişi</span></summary>'+staff.map(function(s){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')):'Durum yükleniyor…';
     return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns">'+((s.id===OWNER_ID&&!(me&&me.id===OWNER_ID))?'<span class="mute s">🔒 Yalnızca kendisi değiştirebilir</span>':'<button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN Sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği Kaldır':'Yönetici Yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button>'+(s.id===PUSHID?'<button class="btn s" data-a="pushsend" data-id="'+s.id+'"'+(pushIds.indexOf(s.id)<0?' disabled title="Kişi bildirimi açmamış"':'')+'>🔔 Bildirim Gönder'+(pushIds.indexOf(s.id)<0?' (Kapalı)':'')+'</button>':'')+(isTop(s)?'<button class="btn s star'+(s.exempt?' on':'')+'" data-a="exempt" data-id="'+s.id+'" data-v="'+(s.exempt?0:1)+'" title="Kontenjana takılmadan izin seçsin" aria-pressed="'+(s.exempt?'true':'false')+'">'+(s.exempt?'★':'☆')+'</button>':''))+'</div></div>'}).join('');
   h+='<div class="sub"><span class="ic i6">➕</span>Yeni Personel Ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik geçici PIN verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn grn" data-a="addstaff">＋ Ekle</button><pre id="pinout" class="pinout"></pre></details>';
@@ -470,6 +472,7 @@ function excuseBox(){
   for(var i=0;i<7;i++){var dn=week+i;if(dn<tn)continue;var ds=dstr(dn);o+='<option value="'+ds+'"'+(ds===excDay?' selected':'')+'>'+DAYS[i]+' · '+dLabel(dn)+'</option>'}
   return '<div class="card"><div class="sub">Mazeret Bildir</div><div class="mute s">Yazdığınızı yalnızca yöneticiler görür.</div><select id="excday" style="width:100%;margin-top:8px">'+o+'</select><textarea id="exctxt" maxlength="400" placeholder="Mazeretinizi yazın…">'+esc(excDraft)+'</textarea><button class="btn pri big" data-a="excsend">Gönder</button></div>'}
 function excCard(){
+  if(!exList.length)return '';
   var open=exList.filter(function(e){return !e.done}),dn=exList.filter(function(e){return e.done});
   function it(e){return '<div class="p"><div style="flex:1"><b>'+esc(e.name)+'</b> <span class="mute s">'+(e.day?esc(dLabel(Math.round(Date.parse(e.day+'T00:00:00Z')/864e5))):'Genel')+' · '+fmtAt(e.at)+'</span><div class="s">'+esc(e.txt)+'</div></div><button class="btn s" data-a="excdone" data-id="'+e.id+'" data-v="'+(e.done?0:1)+'">'+(e.done?'Geri al':'✓ Tamam')+'</button></div>'}
   return '<details class="card acc"><summary><span class="ic i2">📝</span><b>Mazeret Bildirimleri</b><span class="mute s"> · '+open.length+' Yeni</span></summary>'+(exList.length?open.map(it).join('')+(dn.length?'<div class="mute s" style="margin:8px 0 2px">Tamamlananlar</div>'+dn.map(it).join(''):''):'<div class="empty">Henüz mazeret yok</div>')+'</details>'}
