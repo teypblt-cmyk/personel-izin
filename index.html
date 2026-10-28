@@ -321,7 +321,7 @@ function gateHtml(){
   '<div class="gcard"><label class="gl" for="who">Adınız</label><select id="who"><option value="">Adınızı seçin…</option>'+staff.slice().sort(function(a,b){return a.name.localeCompare(b.name,'tr')}).map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>'+
   '<label class="gl" for="pin">PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="• • • •">'+
   '<button class="btn pri big" data-a="login">Giriş yap</button>'+
-  '<div class="ghint">İlk girişte size verilen geçici PIN\'i yazın.<br>Ardından kendi PIN\'inizi belirlersiniz.</div></div>'+
+  '</div>'+
   '</div>';
 }
 function renderAuth(){
