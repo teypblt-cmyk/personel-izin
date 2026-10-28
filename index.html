@@ -343,6 +343,7 @@ var MAXW=2,WEEKCAP=34,DEFQ=[5,4,5,5,5,5,5];
 function weekQuotaSum(ws,ovDay,ovQ){var t=0;for(var i=0;i<7;i++){var ds=dstr(ws+i),rl=rules.get(ds)||{},q=(rl.quota!=null)?rl.quota:DEFQ[i];if(ds===ovDay)q=ovQ;t+=q}return t}
 function weekNormals(){var n=0;for(var i=0;i<7;i++){var ds=dstr(week+i);leaves.forEach(function(l){if(l.day===ds&&l.type==='I'&&staffById[l.staff_id]&&!staffById[l.staff_id].exempt)n++})}return n}
 function myWeekCount(){var n=0;for(var i=0;i<7;i++){var l=leaves.get(me.id+'|'+dstr(week+i));if(l&&(l.type==='I'||l.type==='M'))n++}return n}
+function meAdm(){return !!(me&&admin&&admin.viaStaff&&String(admin.pin).split(':')[0]===String(me.id))}
 function dayCard(i,pct,r){
   var dn=week+i,tn=todayNum(),past=dn<tn,isT=dn===tn,used=r.used;
   var h='<div class="card day">';
@@ -351,10 +352,10 @@ function dayCard(i,pct,r){
     var own=leaves.get(me.id+'|'+r.ds);
     if(own&&own.type!=='I'){/* yönetici belirlemiş, listede görünüyor */}
     else if(past)h+='<div class="note">Geçmiş gün, değiştirilemez</div>';
-    else if(r.locked&&!(staffById[me.id]&&staffById[me.id].exempt))h+='<div class="note">🔒 Bu gün kilitli, değişiklik için yöneticiye yazın</div>';
+    else if(r.locked&&!meAdm()&&!(staffById[me.id]&&staffById[me.id].exempt))h+='<div class="note">🔒 Bu gün kilitli, değişiklik için yöneticiye yazın</div>';
     else if(own)h+='<button class="btn out big" data-a="toggle" data-day="'+r.ds+'" data-on="0">Vazgeç</button>';
-    else if(myWeekCount()>=MAXW)h+='<div class="note">Bu hafta en fazla '+MAXW+' gün izin seçebilirsiniz. Başka bir gün için önce birinden vazgeçin.</div>';
-    else if(weekNormals()>=WEEKCAP)h+='<div class="note">Bu haftanın '+WEEKCAP+' izin hakkı doldu.</div>';
+    else if(!meAdm()&&myWeekCount()>=MAXW)h+='<div class="note">Bu hafta en fazla '+MAXW+' gün izin seçebilirsiniz. Başka bir gün için önce birinden vazgeçin.</div>';
+    else if(!meAdm()&&weekNormals()>=WEEKCAP)h+='<div class="note">Bu haftanın '+WEEKCAP+' izin hakkı doldu.</div>';
     else h+='<button class="btn pri big" data-a="toggle" data-day="'+r.ds+'" data-on="1">İzin seç (önceliğiniz '+pct[me.id][i]+')</button>';
   }else if(!past)h+='<div class="note">İzin seçmek için yukarıdan adınızla giriş yapın</div>';
   if(!r.fixed.length&&!r.ok.length&&!r.wait.length)h+='<div class="empty">Henüz kimse seçmedi</div>';
