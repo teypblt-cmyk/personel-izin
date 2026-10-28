@@ -23,6 +23,7 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0 auto;max-width:640px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px calc(86px + env(safe-area-inset-bottom,0px));background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 h1{font-size:19px;margin:2px 0}
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.topact{display:flex;gap:6px}
 .live{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px}
 .live.on{background:var(--okbg);color:var(--ok)}.live.off{background:var(--waitbg);color:var(--wait)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
@@ -136,7 +137,7 @@ body.gated .gcard select option{color:#14213d;background:#fff}
 <body>
 <div id="bg" aria-hidden="true"><video id="gv" autoplay muted loop playsinline webkit-playsinline preload="auto" disablepictureinpicture></video><div class="gshade"></div></div>
 <script>(function(){try{var v=document.getElementById("gv");v.defaultMuted=true;v.muted=true;if(!sessionStorage.getItem("izin_me")&&!sessionStorage.getItem("izin_adm")){document.body.classList.add("gated");v.addEventListener("playing",function(){v.classList.add("on")});v.src="giris.mp4";v.load();var p=v.play();if(p&&p.catch)p.catch(function(){})}}catch(e){}})()</script>
-<div class="top"><h1>Personel İzin</h1><span id="live" class="live off">○ Bağlanıyor…</span></div>
+<div class="top"><h1>Personel İzin</h1><span id="topact" class="topact"></span></div>
 <div id="err"></div>
 <section class="card" id="auth"></section>
 <div id="inst"></div>
@@ -181,7 +182,7 @@ var rT=0,pendingRender=false;
 
 function setStaff(list){staff=list;staffById={};list.forEach(function(s){staffById[s.id]=s})}
 function setErr(m){var e=$('err');e.textContent=m||'';e.style.display=m?'block':'none'}
-function setLive(v){live=v;var e=$('live');e.className='live '+(v?'on':'off');e.textContent=v?'● Canlı':'○ Yenileniyor (10 sn)'}
+function setLive(v){live=v}
 var tt;function toast(m,bad){var e=$('toast');e.textContent=m;e.className='show'+(bad?' bad':'');clearTimeout(tt);tt=setTimeout(function(){e.className=''},3600)}
 
 /* ---------- öncelik (yüzde) mantığı ---------- */
@@ -276,10 +277,11 @@ function gateHtml(){
 }
 function renderAuth(){
   var el=$('auth'),prev=$('who')?$('who').value:'',h='';
+  var ta=$('topact');if(ta)ta.innerHTML=me?'<button class="btn s" data-a="pinchg">PIN</button><button class="btn s" data-a="logout">Çıkış</button>':'';
   if(!me&&!admin){el.style.display='none';el.innerHTML='';return}
   el.style.display='';
   if(me){
-    h+='<div class="row"><div><b>'+esc(me.name)+'</b> <span class="mute s">giriş yapıldı</span></div><div class="sp"></div>'+(me.id===PUSHID&&pushOk()?'<button class="btn s" data-a="pushtog">'+(pushMine?'🔕 Bildirimi kapat':'🔔 Bildirimi aç')+'</button>':'')+'<button class="btn s" data-a="pinchg">PIN</button><button class="btn s" data-a="logout">Çıkış</button></div>';
+    h+='<div class="row"><div><b>'+esc(me.name)+'</b> <span class="mute s">Giriş yapıldı</span></div><div class="sp"></div>'+(me.id===PUSHID&&pushOk()?'<button class="btn s" data-a="pushtog">'+(pushMine?'🔕 Bildirimi kapat':'🔔 Bildirimi aç')+'</button>':'')+'</div>';
   }else{
     h+='<div class="login"><select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN"><button class="btn pri" data-a="login">Giriş</button></div>';
   }
@@ -438,7 +440,7 @@ function adminTab(){
   var st={};statusList.forEach(function(x){st[x.id]=x});
   var h=weekHead()+'<div class="card"><div class="sub">Hafta kilidi</div><div class="row"><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+'</span><div class="sp"></div><button class="btn s" data-a="lockweek" data-v="1">🔒 Haftayı kilitle</button><button class="btn s" data-a="lockweek" data-v="0">Kilidi aç</button></div></div>';
   h+=excCard();
-  h+='<details class="card acc" id="stfbox"'+(staffOpen?' open':'')+'><summary><b>Personel, PIN ve yetki</b><span class="mute s"> · '+staff.length+' kişi</span></summary><div class="mute s" style="margin:8px 0">PIN\'ler şifreli saklanır, kimse okuyamaz. Unutan olursa "PIN belirle" ile geçici PIN verin, kişi girişte kendi PIN\'ini yeniden belirler.</div>'+staff.map(function(s){
+  h+='<details class="card acc" id="stfbox"'+(staffOpen?' open':'')+'><summary><b>Personel, PIN ve yetki</b><span class="mute s"> · '+staff.length+' kişi</span></summary><div class="mute s" style="margin:8px 0">PIN\'ler şifreli saklanır, kimse okuyamaz. Unutan olursa "PIN sıfırla" ile PIN 0000 olur, kişi girişte kendi PIN\'ini yeniden belirler.</div>'+staff.map(function(s){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')):'Durum yükleniyor…';
     return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns">'+((s.id===OWNER_ID&&!(me&&me.id===OWNER_ID))?'<span class="mute s">🔒 Yalnızca kendisi değiştirebilir</span>':'<button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği kaldır':'Yönetici yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button>'+(s.id===PUSHID?'<button class="btn s" data-a="pushsend" data-id="'+s.id+'"'+(pushIds.indexOf(s.id)<0?' disabled title="Kişi bildirimi açmamış"':'')+'>🔔 Bildirim gönder'+(pushIds.indexOf(s.id)<0?' (kapalı)':'')+'</button>':'')+(isTop(s)?'<button class="btn s star'+(s.exempt?' on':'')+'" data-a="exempt" data-id="'+s.id+'" data-v="'+(s.exempt?0:1)+'" title="Kontenjana takılmadan izin seçsin" aria-pressed="'+(s.exempt?'true':'false')+'">'+(s.exempt?'★':'☆')+'</button>':''))+'</div></div>'}).join('');
   h+='<div class="sub">Yeni personel ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik geçici PIN verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn pri" data-a="addstaff">Ekle</button><pre id="pinout" class="pinout"></pre></details>';
