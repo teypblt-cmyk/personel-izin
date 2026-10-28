@@ -34,8 +34,9 @@ button,select,input,textarea{font:inherit;color:var(--ink)}
 .btn{border:1px solid var(--line);background:var(--fld);padding:9px 14px;border-radius:10px;cursor:pointer;font-weight:600}
 .btn.s{padding:6px 10px;font-size:13px}
 .btn.pri{background:var(--pri);color:var(--onp);border-color:var(--pri)}
+.addsum{display:inline-block;list-style:none;cursor:pointer;background:#16a36a;color:#fff;border:1px solid #16a36a;border-radius:10px;padding:6px 12px;font-size:13px;font-weight:700}.addsum::-webkit-details-marker{display:none}
 .btn.grn{background:#16a36a;color:#fff;border-color:#16a36a;font-weight:700}
-@media (prefers-color-scheme:dark){.btn.grn{background:#2fc98a;color:#06241a;border-color:#2fc98a}}
+@media (prefers-color-scheme:dark){.addsum{background:#2fc98a;color:#06241a;border-color:#2fc98a}.btn.grn{background:#2fc98a;color:#06241a;border-color:#2fc98a}}
 .btn.out{background:transparent;color:var(--bad);border-color:var(--bad)}
 .btn.big{width:100%;padding:13px;font-size:16px;margin:2px 0 10px}
 .btn:disabled{opacity:.5}
@@ -371,7 +372,7 @@ function dayCard(i,pct,r){
   if(admin){
     h+='<div class="adm"><div class="qc"><span class="s mute">Kontenjan</span><button class="btn s" data-a="quota" data-day="'+r.ds+'" data-d="-1">−</button><b>'+r.quota+'</b><button class="btn s" data-a="quota" data-day="'+r.ds+'" data-d="1">+</button><button class="btn s" data-a="assign" title="Bu haftanın tüm onay bekleyenlerini öncelik sırasıyla boş günlere ata"'+(weekWaitCount()?'':' disabled')+'>Haftayı ata'+(weekWaitCount()?' ('+weekWaitCount()+')':'')+'</button></div><button class="btn s" data-a="lock" data-day="'+r.ds+'" data-v="'+(r.locked?0:1)+'">'+(r.locked?'Kilidi aç':'🔒 Kilitle')+'</button></div>';
     var avail=staff.filter(function(s){return !leaves.has(s.id+'|'+r.ds)});
-    h+='<details style="margin-top:8px"><summary class="s mute">+ Kişi ekle (mazeretli, yıllık, rapor)</summary><div class="add"><select id="ap-'+i+'"><option value="">Kişi seçin…</option>'+avail.map(function(s){return '<option value="'+s.id+'">'+esc(s.name)+'</option>'}).join('')+'</select><select id="at-'+i+'"><option value="M">⭐ Mazeretli</option><option value="Y">Yıllık</option><option value="R">Rapor</option><option value="I">Normal</option></select><button class="btn s pri" data-a="addrow" data-day="'+r.ds+'" data-i="'+i+'">Ekle</button></div></details>';
+    h+='<details style="margin-top:8px"><summary class="addsum">＋ Kişi Ekle</summary><div class="mute s" style="margin-top:6px">Mazeretli, yıllık, rapor veya normal izin olarak ekleyin.</div><div class="add"><select id="ap-'+i+'"><option value="">Kişi seçin…</option>'+avail.map(function(s){return '<option value="'+s.id+'">'+esc(s.name)+'</option>'}).join('')+'</select><select id="at-'+i+'"><option value="M">⭐ Mazeretli</option><option value="Y">Yıllık</option><option value="R">Rapor</option><option value="I">Normal</option></select><button class="btn s grn" data-a="addrow" data-day="'+r.ds+'" data-i="'+i+'">Ekle</button></div></details>';
   }
   return h+'</div>';
 }
