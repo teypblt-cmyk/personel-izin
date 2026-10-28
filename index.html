@@ -58,7 +58,7 @@ body.gated .top h1{visibility:hidden}
 details>summary{cursor:pointer;padding:2px 0}
 #auth{padding:10px 12px}
 .wk{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.wk .wt{flex:1;text-align:center}.wk .wt small{display:block;color:var(--mute)}
+.wk .wt{flex:1;text-align:center}.wk .wt b{font-size:18px;font-weight:800;letter-spacing:.2px}.wk .wt small{margin-top:2px;font-size:13px}.wk .wt small{display:block;color:var(--mute)}
 .strip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:10px}
 .dp{position:relative;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:6px 0 5px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px}
 .dp span{font-size:11.5px;color:var(--mute)}
@@ -166,6 +166,8 @@ function dstr(n){var x=new Date(n*864e5);return x.getUTCFullYear()+'-'+pad(x.get
 function wdOf(n){return ((n+3)%7+7)%7}
 function weekNo(n){return Math.floor((n+3)/7)}
 function weekMon(n){return n-wdOf(n)}
+var MONF=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+function dLabelF(n){var x=new Date(n*864e5);return x.getUTCDate()+' '+MONF[x.getUTCMonth()]}
 function dLabel(n){var x=new Date(n*864e5);return x.getUTCDate()+' '+MON[x.getUTCMonth()]}
 function dShort(n){var x=new Date(n*864e5);return x.getUTCDate()+'/'+(x.getUTCMonth()+1)}
 function todayNum(){
@@ -288,7 +290,7 @@ function renderAuth(){
   if(admin){
     h+='<div class="row adminbar"><b>🛠 '+(admin.viaStaff?'Yönetici yetkiniz açık':'Yönetici modu açık')+'</b></div>';
   }
-  el.innerHTML=h;
+  el.style.display=h?'':'none';el.innerHTML=h;
 }
 
 function isStandalone(){return (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true}
@@ -313,7 +315,7 @@ function renderNav(){
 
 function weekHead(){
   var tn=todayNum(),isCur=weekMon(tn)===week;
-  return '<div class="wk"><button class="btn" data-a="prev" aria-label="Önceki hafta"'+(week<=FIRST_WEEK?' disabled':'')+'>‹</button><div class="wt"><b>'+dLabel(week)+' – '+dLabel(week+6)+'</b><small>'+(isCur?'Bu hafta · <a href="#" data-a="next">Gelecek haftaya geç</a>':week>weekMon(tn)?(week>weekMon(tn)+7?'İleri hafta (tahmin) · ':'Gelecek hafta · ')+'<a href="#" data-a="today">Bu haftaya dön</a>':'<a href="#" data-a="today">Bu haftaya dön</a>')+'</small></div><button class="btn" data-a="next" aria-label="Sonraki hafta"'+(week>=maxWeek()?' disabled':'')+'>›</button></div>';
+  return '<div class="wk"><button class="btn" data-a="prev" aria-label="Önceki hafta"'+(week<=FIRST_WEEK?' disabled':'')+'>‹</button><div class="wt"><b>'+dLabelF(week)+' – '+dLabelF(week+6)+'</b><small>'+(isCur?'Bu hafta · <a href="#" data-a="next">Gelecek haftaya geç</a>':week>weekMon(tn)?(week>weekMon(tn)+7?'İleri hafta (tahmin) · ':'Gelecek hafta · ')+'<a href="#" data-a="today">Bu haftaya dön</a>':'<a href="#" data-a="today">Bu haftaya dön</a>')+'</small></div><button class="btn" data-a="next" aria-label="Sonraki hafta"'+(week>=maxWeek()?' disabled':'')+'>›</button></div>';
 }
 
 function dayStrip(c){
@@ -354,7 +356,7 @@ function dayCard(i,pct,r){
     var own=leaves.get(me.id+'|'+r.ds);
     if(own&&own.type!=='I'){/* yönetici belirlemiş, listede görünüyor */}
     else if(past)h+='<div class="note">Geçmiş gün, değiştirilemez</div>';
-    else if(r.locked&&!meAdm()&&!(staffById[me.id]&&staffById[me.id].exempt))h+='<div class="note">🔒 Bu gün kilitli, değişiklik için yöneticiye yazın</div>';
+    else if(r.locked&&!meAdm()&&!(staffById[me.id]&&staffById[me.id].exempt))h+='';
     else if(own)h+='<button class="btn out big" data-a="toggle" data-day="'+r.ds+'" data-on="0">Vazgeç</button>';
     else if(!meAdm()&&myWeekCount()>=MAXW)h+='<div class="note">Bu hafta en fazla '+MAXW+' gün izin seçebilirsiniz. Başka bir gün için önce birinden vazgeçin.</div>';
     else if(!meAdm()&&weekNormals()>=WEEKCAP)h+='<div class="note">Bu haftanın '+WEEKCAP+' izin hakkı doldu.</div>';
