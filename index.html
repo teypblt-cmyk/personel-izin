@@ -437,6 +437,7 @@ function weekLists(){
 function adminTab(){
   var st={};statusList.forEach(function(x){st[x.id]=x});
   var h=weekHead()+'<div class="card"><div class="sub">Hafta kilidi</div><div class="row"><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+'</span><div class="sp"></div><button class="btn s" data-a="lockweek" data-v="1">🔒 Haftayı kilitle</button><button class="btn s" data-a="lockweek" data-v="0">Kilidi aç</button></div></div>';
+  h+=excCard();
   h+='<details class="card acc" id="stfbox"'+(staffOpen?' open':'')+'><summary><b>Personel, PIN ve yetki</b><span class="mute s"> · '+staff.length+' kişi</span></summary><div class="mute s" style="margin:8px 0">PIN\'ler şifreli saklanır, kimse okuyamaz. Unutan olursa "PIN belirle" ile geçici PIN verin, kişi girişte kendi PIN\'ini yeniden belirler.</div>'+staff.map(function(s){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')):'Durum yükleniyor…';
     return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b><div class="s mute">'+badge+'</div></div><div class="btns">'+((s.id===OWNER_ID&&!(me&&me.id===OWNER_ID))?'<span class="mute s">🔒 Yalnızca kendisi değiştirebilir</span>':'<button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği kaldır':'Yönetici yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button>'+(s.id===PUSHID?'<button class="btn s" data-a="pushsend" data-id="'+s.id+'"'+(pushIds.indexOf(s.id)<0?' disabled title="Kişi bildirimi açmamış"':'')+'>🔔 Bildirim gönder'+(pushIds.indexOf(s.id)<0?' (kapalı)':'')+'</button>':'')+(isTop(s)?'<button class="btn s star'+(s.exempt?' on':'')+'" data-a="exempt" data-id="'+s.id+'" data-v="'+(s.exempt?0:1)+'" title="Kontenjana takılmadan izin seçsin" aria-pressed="'+(s.exempt?'true':'false')+'">'+(s.exempt?'★':'☆')+'</button>':''))+'</div></div>'}).join('');
@@ -452,6 +453,18 @@ function pinSetup(){
   return '<div class="card"><div class="sub">Kendi PIN\'inizi belirleyin</div><div class="mute s" style="margin-bottom:10px">İlk girişte size verilen PIN geçicidir. Başkasının bilmediği, 4-8 rakamdan oluşan kendi PIN\'inizi seçin. Bundan sonra bunu kullanacaksınız.</div><div class="login"><input id="np1" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="Yeni PIN"><input id="np2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="Yeni PIN (tekrar)"></div><button class="btn pri big" style="margin-top:10px" data-a="setpin">PIN\'imi kaydet</button></div>';
 }
 function maxWeek(){return weekMon(todayNum())+(admin?7*52:7)}
+var excDraft='',excDay='',exList=[];
+function excuseBox(){
+  if(!me||meAdm()||isTop(staffById[me.id]||{}))return '';
+  var tn=todayNum(),o='<option value="">Genel (belirli bir gün yok)</option>';
+  for(var i=0;i<7;i++){var dn=week+i;if(dn<tn)continue;var ds=dstr(dn);o+='<option value="'+ds+'"'+(ds===excDay?' selected':'')+'>'+DAYS[i]+' · '+dLabel(dn)+'</option>'}
+  return '<div class="card"><div class="sub">Mazeret bildir</div><div class="mute s">Yazdığınızı yalnızca yöneticiler görür.</div><select id="excday" style="width:100%;margin-top:8px">'+o+'</select><textarea id="exctxt" maxlength="400" placeholder="Mazeretinizi yazın…">'+esc(excDraft)+'</textarea><button class="btn pri big" data-a="excsend">Gönder</button></div>'}
+function excCard(){
+  var open=exList.filter(function(e){return !e.done}),dn=exList.filter(function(e){return e.done});
+  function it(e){return '<div class="p"><div style="flex:1"><b>'+esc(e.name)+'</b> <span class="mute s">'+(e.day?esc(dLabel(Math.round(Date.parse(e.day+'T00:00:00Z')/864e5))):'Genel')+' · '+fmtAt(e.at)+'</span><div class="s">'+esc(e.txt)+'</div></div><button class="btn s" data-a="excdone" data-id="'+e.id+'" data-v="'+(e.done?0:1)+'">'+(e.done?'Geri al':'✓ Tamam')+'</button></div>'}
+  return '<details class="card acc"><summary><b>Mazeret bildirimleri</b><span class="mute s"> · '+open.length+' yeni</span></summary>'+(exList.length?open.map(it).join('')+(dn.length?'<div class="mute s" style="margin:8px 0 2px">Tamamlananlar</div>'+dn.map(it).join(''):''):'<div class="empty">Henüz mazeret yok</div>')+'</details>'}
+document.addEventListener('input',function(e){var t=e.target;if(t&&t.id==='exctxt')excDraft=t.value;if(t&&t.id==='excday')excDay=t.value});
+document.addEventListener('change',function(e){var t=e.target;if(t&&t.id==='excday')excDay=t.value});
 function renderMain(){
   var el=$('main');
   if(week>maxWeek())week=maxWeek();
@@ -462,7 +475,7 @@ function renderMain(){
   if(!me&&!admin){el.innerHTML=gateHtml();fetchPinLen();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
   var h='';
-  if(tab==='gun'){var c=compute();h=weekHead()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])}
+  if(tab==='gun'){var c=compute();h=weekHead()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])+excuseBox()}
   else if(tab==='yuzde'){h=weekHead()+pctTable(compute())}
   else if(tab==='yon'){h=adminTab()}
   else if(tab==='hrk'){h=logTab()}
@@ -491,6 +504,7 @@ async function loadStatus(norender){
   if(!admin)return;
   var r=await rpc('admin_staff_status',{p_pin:admin.pin},true);
   if(r&&r.ok){statusList=r.list;if(!norender&&tab==='yon')scheduleRender()}
+  var er=await rpc('admin_list_excuses',{p_pin:admin.pin},true);if(er&&er.ok){exList=er.list;if(!norender&&tab==='yon')scheduleRender()}
   var pr=await rpc('admin_push_status',{p_pin:admin.pin},true);if(pr&&pr.ok){pushIds=pr.ids;if(!norender&&tab==='yon')scheduleRender()}
 }
 async function loadAll(){
@@ -767,6 +781,12 @@ async function act(a,d,el){
       r=await rpc('admin_reset_pin',{p_pin:admin.pin,p_staff:+d.id,p_new:'0000'});
       if(r&&r.ok){await loadStatus();toast(r.name+' PIN\'i 0000 yapıldı')}
       break}
+    case 'excsend':{var tx=$('exctxt'),dy=$('excday');excDraft=tx?tx.value:excDraft;
+      if(!excDraft.trim()){toast('Mazeretinizi yazın',1);break}
+      r=await rpc('staff_add_excuse',{p_staff:me.id,p_pin:me.pin,p_day:(dy&&dy.value)||null,p_txt:excDraft});
+      if(r&&r.ok){excDraft='';excDay='';renderMain();toast('Mazeretiniz yöneticilere iletildi')}
+      break}
+    case 'excdone':{r=await rpc('admin_excuse_done',{p_pin:admin.pin,p_id:+d.id,p_done:d.v==='1'});if(r&&r.ok)loadStatus();break}
     case 'pushtog':await pushToggle();break;
     case 'pushsend':await pushSend(+d.id);break;
     case 'exempt':{
