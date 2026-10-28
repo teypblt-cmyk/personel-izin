@@ -445,8 +445,7 @@ function adminTab(){
   h+=weekLists();
   h+='<div class="card"><div class="sub">Haftanın listesi (PDF)</div><div class="mute s" style="margin-bottom:8px">Seçili haftanın çizelgesini tek sayfa PDF yapar ve paylaşma penceresini açar. Pencerede WhatsApp\'ı seçin.</div><div class="row"><button class="btn pri" data-a="export-pdf">PDF hazırla ve gönder</button></div></div>'+
   '<div class="card"><div class="sub">Yedek</div><div class="mute s" style="margin-bottom:8px">Tüm izin kayıtlarını telefonunuza ya da bilgisayarınıza indirir. PIN\'ler dahil değildir.</div><div class="row"><button class="btn" data-a="export-csv">Excel için (CSV)</button><button class="btn" data-a="export-json">Tam yedek (JSON)</button></div></div>';
-  if(admin&&admin.viaStaff)h+='<div class="card"><div class="sub">Yönetici</div><div class="mute s">Yönetici yetkiniz kendi PIN\'inizle açıldı. Kapatmak için sayfanın üstünden çıkış yapın.</div></div>';
-  else h+='<div class="card"><div class="sub">Ortak yönetici PIN</div><div class="row"><button class="btn" data-a="adm-pinchg">Ortak PIN\'i değiştir</button><button class="btn out" data-a="adm-out">Yönetici modunu kapat</button></div></div>';
+  if(!(admin&&admin.viaStaff))h+='<div class="card"><div class="sub">Ortak yönetici PIN</div><div class="row"><button class="btn" data-a="adm-pinchg">Ortak PIN\'i değiştir</button><button class="btn out" data-a="adm-out">Yönetici modunu kapat</button></div></div>';
   return h;
 }
 function pinSetup(){
