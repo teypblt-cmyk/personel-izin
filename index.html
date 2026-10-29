@@ -57,6 +57,7 @@ textarea{width:100%;min-height:100px;margin:6px 0}
 .ghint{font-size:12.5px;color:var(--mute);text-align:center;line-height:1.5}
 .gadm{margin-top:18px;width:100%;text-align:center}.gadm summary{color:var(--mute);font-size:13px;cursor:pointer;list-style:none}.gadm summary::-webkit-details-marker{display:none}.gadm .login{justify-content:center}
 body.gated .top h1{visibility:hidden}
+.pkb{width:100%;margin-top:10px}
 .login{display:flex;gap:8px;flex-wrap:wrap}.login select{flex:2 1 150px}.login input{flex:1 1 80px;min-width:80px}
 details>summary{cursor:pointer;padding:2px 0}
 #auth{padding:10px 12px}
@@ -180,6 +181,10 @@ select:focus,input:focus,textarea:focus{border-bottom-color:var(--pri);box-shado
 body.gated{background:transparent}
 select option{color:#111;background:#fff}
 @media (prefers-color-scheme:dark){select option{color:#f5f6fb;background:#1b1c27}}
+.swb{padding:3px 9px;font-size:15px;line-height:1}
+#swov{position:fixed;inset:0;z-index:20;display:none}.swbg{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.swsh{position:absolute;left:0;right:0;bottom:0;max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:16px 16px 0 0;padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px));-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
+.sw{flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -230,7 +235,8 @@ var FIRST_WEEK=Math.floor(Date.UTC(2026,8,21)/864e5);
 var me=null,admin=null,statusList=[],week=weekMon(todayNum())+7,selDay=0,tab='gun',howOpen=false,staffOpen=false,deferredPrompt=null;
 var rT=0,pendingRender=false;
 
-function setStaff(list){staff=list;staffById={};list.forEach(function(s){staffById[s.id]=s})}
+var stSig='',lvSig='';
+function setStaff(list){var sg=list.map(function(x){return x.id+x.name+x.exempt}).join();if(sg!==stSig){stSig=sg;dataVer++}staff=list;staffById={};list.forEach(function(s){staffById[s.id]=s})}
 function setErr(m){var e=$('err');e.textContent=m||'';e.style.display=m?'block':'none'}
 function setLive(v){live=v}
 var tt;function toast(m,bad){var e=$('toast');e.textContent=m;e.className='show'+(bad?' bad':'');clearTimeout(tt);tt=setTimeout(function(){e.className=''},3600)}
@@ -242,7 +248,47 @@ function pcChip(v,mk){var c=pcCol(v);return '<i class="pc'+(mk?' mk':'')+'" styl
 
 /* Yüzde yalnızca görüntülenen haftadan ÖNCEKİ geçmişe bakar ('I' ve 'M' türleri).
    Yıllık (Y) ve rapor (R) geçmişe sayılmaz. */
+/* ---------- Sunucu hesabı (tek doğru kaynak) ----------
+   Öncelik ve atama sunucuda (week_state) hesaplanır; herkes aynı sonucu görür.
+   Sunucu cevabı henüz gelmediyse ya da ulaşılamıyorsa aşağıdaki yerel hesap
+   (aynı algoritma) geçici olarak kullanılır. */
+var dataVer=0,wsCache={},wsBusy={},wsFailAt=0;
+function wsKey(){return dstr(week)}
+function wsRequest(){
+  var k=wsKey();if(!sb||wsBusy[k])return;
+  if(Date.now()-wsFailAt<8000)return;
+  var v=dataVer,wk=week;wsBusy[k]=1;
+  Promise.resolve(sb.rpc('week_state',{p_week:k})).then(function(r){
+    delete wsBusy[k];
+    var js=r&&!r.error&&r.data;
+    if(!js||!js.ok||!js.days||js.days.length!==7||!js.pct){wsFailAt=Date.now();return}
+    wsCache[k]={v:v,js:js};
+    if(wk===week||v!==dataVer)scheduleRender();
+  }).catch(function(){delete wsBusy[k];wsFailAt=Date.now()});
+}
+function fromServer(js){
+  var pct={},ok=true;
+  staff.forEach(function(s){var a=js.pct[s.id];if(!a||a.length!==7)ok=false;pct[s.id]=a});
+  if(!ok)return null;
+  var res=[];
+  for(var i=0;i<7;i++){
+    var d=js.days[i],ds=dstr(week+i);if(d.ds!==ds)return null;
+    var get=function(sid){return leaves.get(sid+'|'+ds)};
+    var fixed=[],oks=[],wait=[],okIds={};
+    for(var a=0;a<d.fixed.length;a++){var f=get(d.fixed[a].s);if(!f||f.type!==d.fixed[a].t)return null;fixed.push(f)}
+    for(var b=0;b<d.ok.length;b++){var o=get(d.ok[b]);if(!o)return null;oks.push(o);okIds[o.staff_id]=1}
+    for(var c=0;c<d.wait.length;c++){var w=get(d.wait[c]);if(!w)return null;wait.push(w)}
+    res.push({ds:ds,fixed:fixed,ok:oks,okIds:okIds,wait:wait,quota:d.quota,locked:!!d.locked,used:d.used});
+  }
+  return {pct:pct,res:res};
+}
 function compute(){
+  var ws=wsCache[wsKey()];
+  if(ws&&ws.v===dataVer){var sv=fromServer(ws.js);if(sv){lastRes=sv.res;return sv}}
+  if(ready)setTimeout(wsRequest,0);
+  return computeLocal();
+}
+function computeLocal(){
   var uses={};staff.forEach(function(s){uses[s.id]=[[],[],[],[],[],[],[]]});
   leaves.forEach(function(l){if((l.type!=='I'&&l.type!=='M')||!uses[l.staff_id])return;var n=dnum(l.day);uses[l.staff_id][wdOf(n)].push(weekNo(n))});
   var wk=weekNo(week),pct={};staff.forEach(function(s){pct[s.id]=[]});
@@ -264,10 +310,10 @@ function compute(){
       var ds=dstr(week+i),rows=by.get(ds)||[],fixed=[],req=[];
       rows.forEach(function(l){(l.type==='I'?req:fixed).push(l)});
       fixed.sort(function(a,b){return a.type<b.type?-1:a.type>b.type?1:nm(a).localeCompare(nm(b),'tr')});
-      req.sort(function(a,b){return (pct[b.staff_id][i]-pct[a.staff_id][i])||(ts(a.created_at)-ts(b.created_at))||nm(a).localeCompare(nm(b),'tr')});
+      req.sort(function(a,b){return ((b.swap?1:0)-(a.swap?1:0))||(pct[b.staff_id][i]-pct[a.staff_id][i])||(ts(a.created_at)-ts(b.created_at))||nm(a).localeCompare(nm(b),'tr')});
       var rule=rules.get(ds)||{},q=(rule.quota!=null)?rule.quota:DEFQ[i];
       var fx=req.filter(function(l){return staffById[l.staff_id].exempt}),rq=req.filter(function(l){return !staffById[l.staff_id].exempt});
-      var slots=(q==null)?rq.length:Math.max(0,q-fixed.length);
+      var nsw=rq.filter(function(l){return l.swap}).length,slots=(q==null)?rq.length:Math.max(0,q-fixed.length,nsw);
       var ok=fx.concat(rq.slice(0,slots)),okIds={};ok.forEach(function(l){okIds[l.staff_id]=1});
       res.push({ds:ds,fixed:fixed,ok:ok,okIds:okIds,wait:rq.slice(slots),quota:q,locked:!!rule.locked,used:fixed.length+ok.length-fx.length});
     })(i);
@@ -325,14 +371,55 @@ function gateHtml(){
   '</div>'+
   '</div>';
 }
+
+/* ---- Hızlı giriş (parmak izi / Face ID) — isteğe bağlı, PIN her zaman çalışır ---- */
+var PKF=CFG.URL+'/functions/v1/passkey',pkBusy=false;
+function pkOk(){return !!(window.PublicKeyCredential&&navigator.credentials&&navigator.credentials.create)}
+function pkMap(){try{return JSON.parse(localStorage.getItem('izin_pk')||'{}')||{}}catch(e){return {}}}
+function pkSet(id,c){try{var m=pkMap();if(c)m[id]=c;else delete m[id];localStorage.setItem('izin_pk',JSON.stringify(m))}catch(e){}}
+function pkHas(){return pkOk()&&Object.keys(pkMap()).length>0}
+function pb64(x){x=String(x).replace(/-/g,'+').replace(/_/g,'/');while(x.length%4)x+='=';var b=atob(x),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a.buffer}
+function bb64(buf){var a=new Uint8Array(buf),s='';for(var i=0;i<a.length;i++)s+=String.fromCharCode(a[i]);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+async function pkApi(b){try{var r=await fetch(PKF,{method:'POST',headers:{'Content-Type':'application/json',apikey:CFG.KEY},body:JSON.stringify(b)});return await r.json()}catch(e){return {ok:false,error:'Bağlantı kurulamadı'}}}
+async function pkRegister(){
+  var r=await pkApi({action:'reg-options',staff_id:me.id,pin:me.pin});
+  if(!(r&&r.ok)){toast((r&&r.error)||'Kurulamadı',1);return}
+  var o=r.options,cr;
+  var pub={challenge:pb64(o.challenge),rp:o.rp,user:{id:pb64(o.user.id),name:o.user.name,displayName:o.user.displayName},pubKeyCredParams:o.pubKeyCredParams,timeout:o.timeout,attestation:o.attestation,authenticatorSelection:o.authenticatorSelection,excludeCredentials:(o.excludeCredentials||[]).map(function(c){return {type:'public-key',id:pb64(c.id),transports:c.transports}})};
+  try{cr=await navigator.credentials.create({publicKey:pub})}catch(e){toast('Hızlı giriş kurulmadı',1);return}
+  var j={id:cr.id,rawId:bb64(cr.rawId),type:cr.type,clientExtensionResults:cr.getClientExtensionResults?cr.getClientExtensionResults():{},response:{clientDataJSON:bb64(cr.response.clientDataJSON),attestationObject:bb64(cr.response.attestationObject),transports:cr.response.getTransports?cr.response.getTransports():[]}};
+  if(cr.authenticatorAttachment)j.authenticatorAttachment=cr.authenticatorAttachment;
+  var v=await pkApi({action:'reg-verify',staff_id:me.id,pin:me.pin,response:j});
+  if(v&&v.ok){pkSet(me.id,v.cred);renderAuth();toast('Hızlı giriş açıldı')}else toast((v&&v.error)||'Kurulamadı',1);
+}
+async function pkLogin(){
+  var id=+(($('who')&&$('who').value)||0),m=pkMap();
+  if(!id){var l=0;try{l=+localStorage.getItem('izin_last')||0}catch(e){}id=m[l]?l:+Object.keys(m)[0]}
+  if(!m[id]){toast('Bu kişi için hızlı giriş kurulu değil. PIN ile girin',1);return}
+  var r=await pkApi({action:'auth-options',staff_id:id});
+  if(!(r&&r.ok)){if(r&&/kurulmam/.test(r.error||''))pkSet(id,null);toast((r&&r.error)||'Giriş yapılamadı',1);return}
+  var o=r.options,cr;
+  var pub={challenge:pb64(o.challenge),rpId:o.rpId,timeout:o.timeout,userVerification:o.userVerification,allowCredentials:(o.allowCredentials||[]).map(function(c){return {type:'public-key',id:pb64(c.id),transports:c.transports}})};
+  try{cr=await navigator.credentials.get({publicKey:pub})}catch(e){toast('Giriş iptal edildi',1);return}
+  var j={id:cr.id,rawId:bb64(cr.rawId),type:cr.type,clientExtensionResults:cr.getClientExtensionResults?cr.getClientExtensionResults():{},response:{clientDataJSON:bb64(cr.response.clientDataJSON),authenticatorData:bb64(cr.response.authenticatorData),signature:bb64(cr.response.signature),userHandle:cr.response.userHandle?bb64(cr.response.userHandle):null}};
+  var v=await pkApi({action:'auth-verify',staff_id:id,response:j});
+  if(!(v&&v.ok&&v.token)){toast((v&&v.error)||'Giriş yapılamadı',1);return}
+  var pin='T:'+v.token,x=await rpc('staff_login',{p_staff:id,p_pin:pin});
+  if(x&&x.ok){me={id:id,pin:pin,name:x.name,mustChange:!!x.must_change};if(x.admin)admin={pin:id+':'+pin,viaStaff:true};saveMe();renderAll();toast('Hoş geldiniz '+x.name);if(admin)loadStatus()}
+}
+async function pkOff(){
+  var c=pkMap()[me.id];
+  if(c)await pkApi({action:'remove',staff_id:me.id,pin:me.pin,cred:c});
+  pkSet(me.id,null);renderAuth();toast('Hızlı giriş kapatıldı');
+}
 function renderAuth(){
   var el=$('auth'),prev=$('who')?$('who').value:'',h='';
-  var ta=$('topact');if(ta)ta.innerHTML=me?'<button class="btn s" data-a="pinchg">PIN</button><button class="btn s" data-a="logout">Çıkış</button>':'';
+  var ta=$('topact');if(ta)ta.innerHTML=me?(pkOk()&&!me.mustChange?'<button class="btn s" data-a="'+(pkMap()[me.id]?'pkoff':'pkreg')+'">'+(pkMap()[me.id]?'Hızlı Giriş: Açık':'Hızlı Giriş')+'</button>':'')+'<button class="btn s" data-a="pinchg">PIN</button><button class="btn s" data-a="logout">Çıkış</button>':'';
   if(!me&&!admin){el.style.display='none';el.innerHTML='';return}
   el.style.display='';
   if(me){
   }else{
-    h+='<div class="login"><select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN"><button class="btn pri" data-a="login">Giriş</button></div>';
+    h+='<div class="login"><select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN"><button class="btn pri" data-a="login">Giriş</button></div>'+(pkHas()?'<button class="btn big pkb" data-a="pklogin">Parmak İzi / Face ID ile Gir</button>':'');
   }
   if(admin){
     h+='<div class="row adminbar"><b>🛠 '+(admin.viaStaff?'Yönetici yetkiniz açık':'Yönetici modu açık')+'</b><div class="sp"></div><button class="btn s pdfb" data-a="export-pdf" title="Seçili haftanın PDF listesini hazırla ve gönder"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5L13 3.5z"/><text x="12" y="19" font-size="6.5" font-weight="800" text-anchor="middle" fill="#fff">PDF</text></svg> PDF Gönder</button></div>';
@@ -384,8 +471,45 @@ function row(l,st,i,pct){
   if(admin){
     ctl='<select class="rs" data-a="setrow" data-day="'+l.day+'" data-staff="'+l.staff_id+'">'+['I','M','Y','R'].map(function(t){return '<option value="'+t+'"'+(t===l.type?' selected':'')+'>'+TN[t]+'</option>'}).join('')+'<option value="">Kaldır</option></select>';
   }
-  return '<div class="p'+(mine?' me':'')+'"><span class="nm">'+esc(s.name)+'</span>'+tag+pc+ctl+'</div>';
+  if(st==='ok'&&l.type==='I'&&me&&!mine&&!admin&&swapAllowed(l.day)&&myTradables().length)ctl+='<button class="btn s swb" data-a="swapopen" data-staff="'+l.staff_id+'" data-day="'+l.day+'" title="Bu günle takas teklif et">⇄</button>';
+  return '<div class="p'+(mine?' me':'')+'"><span class="nm">'+esc(s.name)+'</span>'+tag+(l.swap?'<span class="tag fix">Takas</span>':'')+pc+ctl+'</div>';
 }
+
+/* ---------- takas ---------- */
+var swList={incoming:[],outgoing:[]},swSig='';
+function swapAllowed(ds){var n=dnum(ds),tn=todayNum(),rl=rules.get(ds);return n>=tn&&n<weekMon(tn)+14&&!(rl&&rl.locked)}
+function okOn(sid,ds){
+  var n=dnum(ds),wm=dstr(weekMon(n)),c=wsCache[wm];
+  if(c&&c.js&&c.js.days){var d=c.js.days[n-weekMon(n)];if(d)return d.ok.indexOf(sid)>=0}
+  if(lastRes){for(var i=0;i<lastRes.length;i++)if(lastRes[i].ds===ds)return !!lastRes[i].okIds[sid]}
+  return null}
+function myTradables(){
+  var out=[];if(!me)return out;
+  leaves.forEach(function(l){if(l.staff_id===me.id&&l.type==='I'&&swapAllowed(l.day)&&okOn(me.id,l.day)!==false)out.push(l.day)});
+  out.sort();return out}
+function dayName(ds){var n=dnum(ds);return DAYS[wdOf(n)]+' '+dLabelF(n)}
+async function loadSwaps(){
+  if(!me){swList={incoming:[],outgoing:[]};swSig='';return}
+  if(!sb)return;
+  var r=await rpc('staff_swap_list',{p_staff:me.id,p_pin:me.pin},true);
+  if(r&&r.ok){var sg=JSON.stringify([r.incoming,r.outgoing]);if(sg!==swSig){swSig=sg;swList={incoming:r.incoming||[],outgoing:r.outgoing||[]};scheduleRender()}}}
+function swapCard(){
+  if(!me||(!swList.incoming.length&&!swList.outgoing.length))return '';
+  var h='<div class="card"><div class="sub"><span class="ic i4">⇄</span>Takas</div>';
+  swList.incoming.forEach(function(t){
+    h+='<div class="p sw"><div style="flex:1"><b>'+esc(t.who)+'</b> <span class="s">'+esc(dayName(t.give))+' gününüzü almak istiyor, karşılığında <b>'+esc(dayName(t.take))+'</b> gününü veriyor.</span></div><button class="btn s grn" data-a="swapacc" data-id="'+t.id+'">Kabul Et</button><button class="btn s out" data-a="swaprej" data-id="'+t.id+'">Reddet</button></div>'});
+  swList.outgoing.forEach(function(t){
+    h+='<div class="p sw"><div style="flex:1" class="s"><b>'+esc(t.who)+'</b> kişisine teklif: <b>'+esc(dayName(t.give))+'</b> ⇄ <b>'+esc(dayName(t.take))+'</b> · Yanıt bekleniyor</div><button class="btn s out" data-a="swapcan" data-id="'+t.id+'">İptal</button></div>'});
+  return h+'</div>'}
+function swapSheet(otherId,otherDay){
+  var days=myTradables(),o=$('swov');
+  if(!o){o=document.createElement('div');o.id='swov';document.body.appendChild(o)}
+  var nm=staffById[otherId]?staffById[otherId].name:'?';
+  o.innerHTML='<div class="swbg" data-a="swapclose"></div><div class="swsh"><div class="sub" style="margin-top:0">Takas Teklifi</div><div class="s mute" style="margin-bottom:10px"><b>'+esc(nm)+'</b> kişisinin <b>'+esc(dayName(otherDay))+'</b> gününü almak için hangi gününüzü verirsiniz?</div>'+
+    (days.length?days.map(function(ds){return '<button class="btn big" data-a="swapgo" data-staff="'+otherId+'" data-other="'+otherDay+'" data-mine="'+ds+'">'+esc(dayName(ds))+'</button>'}).join(''):'<div class="empty">Takas edebileceğiniz onaylı bir gününüz yok</div>')+
+    '<button class="btn out big" data-a="swapclose" style="margin-top:0">Vazgeç</button></div>';
+  o.style.display='block'}
+function swapClose(){var o=$('swov');if(o){o.style.display='none';o.innerHTML=''}}
 
 var OWNER_ID=11;
 var TOPNAMES=['Nilgün Gül'];
@@ -530,7 +654,7 @@ function renderMain(){
   if(!me&&!admin){el.innerHTML=gateHtml();fetchPinLen();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
   var h='';
-  if(tab==='gun'){var c=compute();h=weekHead()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])+excuseBox()}
+  if(tab==='gun'){var c=compute();h=weekHead()+swapCard()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])+excuseBox()}
   else if(tab==='yuzde'){h=weekHead()+pctTable(compute())}
   else if(tab==='yon'){h=adminTab()}
   else if(tab==='hrk'){h=logTab()}
@@ -565,22 +689,25 @@ async function loadAll(){
   try{
     var r=await Promise.all([
       loadStaff(),
-      fetchAll('leaves','staff_id,day,type,created_at',['day','staff_id']),
+      fetchAll('leaves','staff_id,day,type,created_at,swap',['day','staff_id']),
       sb.from('day_rules').select('day,quota,locked'),
       sb.from('log').select('id,at,who,action,day,detail').order('id',{ascending:false}).limit(40)]);
     if(r[2].error)throw r[2].error;if(r[3].error)throw r[3].error;
     leaves=new Map();r[1].forEach(function(l){leaves.set(l.staff_id+'|'+l.day,l)});
     rules=new Map();r[2].data.forEach(function(x){rules.set(x.day,x)});
+    var sg2=r[1].map(function(l){return l.staff_id+l.day+l.type+l.created_at}).join()+'#'+r[2].data.map(function(x){return x.day+x.quota+x.locked}).join();if(sg2!==lvSig){lvSig=sg2;dataVer++}
     logs=r[3].data;ready=true;setErr('');
     if(me&&!staffById[me.id]){me=null}
     if(!me&&admin&&admin.viaStaff)admin=null;
     var a=document.activeElement;
     if(a&&a.closest&&a.closest('#main')&&/^(SELECT|INPUT|TEXTAREA)$/.test(a.tagName)){pendingRender=true}else renderAll();
+    loadSwaps();
   }catch(e){setErr('Sunucuya ulaşılamadı, yeniden deniyorum… ('+(e.message||e)+')')}
 }
 function onChange(t,p){
+  if(t==='leaves'||t==='day_rules')dataVer++;
   var ev=p.eventType;
-  if(t==='leaves'){if(ev==='DELETE'){var o=p.old||{};leaves.delete(o.staff_id+'|'+o.day)}else{var n=p.new;leaves.set(n.staff_id+'|'+n.day,n)}}
+  if(t==='leaves'){if(ev==='DELETE'){var o=p.old||{};leaves.delete(o.staff_id+'|'+o.day)}else{var n=p.new,po=p.old||{};if(po.staff_id!=null&&po.day&&(po.staff_id!==n.staff_id||po.day!==n.day))leaves.delete(po.staff_id+'|'+po.day);leaves.set(n.staff_id+'|'+n.day,n)}}
   else if(t==='day_rules'){if(ev==='DELETE')rules.delete((p.old||{}).day);else rules.set(p.new.day,p.new)}
   else if(t==='staff'){loadStaff().then(function(){renderAuth();scheduleRender()}).catch(function(){});return}
   else if(t==='log'){if(ev==='INSERT'){logs.unshift(p.new);if(logs.length>40)logs.length=40}}
@@ -613,13 +740,14 @@ async function rpc(fn,args,silent){
   if(r.error){if(!silent)toast('Bağlantı hatası: '+r.error.message,1);return null}
   var d=r.data;if(!d||d.ok===false){if(!silent)toast((d&&d.error)||'Hata',1);return d||null}
   return d}
-function setRule(day,patch){var o=rules.get(day)||{day:day,quota:null,locked:false};rules.set(day,Object.assign({},o,patch))}
+function setRule(day,patch){dataVer++;var o=rules.get(day)||{day:day,quota:null,locked:false};rules.set(day,Object.assign({},o,patch))}
 function setLocal(staffId,day,type){
+  dataVer++;
   if(!type)leaves.delete(staffId+'|'+day);
   else{var k=staffId+'|'+day,o=leaves.get(k);leaves.set(k,{staff_id:staffId,day:day,type:type,created_at:o?o.created_at:new Date().toISOString()})}}
 /* Giriş yalnızca bu oturum boyunca (sekme/uygulama kapanana kadar) hatırlanır.
    Uygulama ya da tarayıcı kapatılınca sessionStorage silinir ve kişi çıkış yapmış olur. */
-function saveMe(){try{if(me){sessionStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));localStorage.setItem('izin_last',String(me.id))}else sessionStorage.removeItem('izin_me');localStorage.removeItem('izin_me')}catch(e){}pushCheck()}
+function saveMe(){try{if(me){sessionStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));localStorage.setItem('izin_last',String(me.id))}else sessionStorage.removeItem('izin_me');localStorage.removeItem('izin_me')}catch(e){}pushCheck();loadSwaps()}
 function saveAdm(){try{if(admin&&!admin.viaStaff)sessionStorage.setItem('izin_adm',admin.pin);else sessionStorage.removeItem('izin_adm')}catch(e){}}
 
 var lastRes=[];
@@ -745,12 +873,20 @@ async function act(a,d,el){
       if(!(r&&r.ok)){var pf=$('pin');if(pf){pf.value='';pf.focus()}}
       if(r&&r.ok){me={id:id,pin:pin,name:r.name,mustChange:!!r.must_change};if(r.admin)admin={pin:id+':'+pin,viaStaff:true};saveMe();renderAll();toast('Hoş geldiniz '+r.name);if(admin)loadStatus()}
       break}
+    case 'pkreg':if(pkBusy)break;pkBusy=true;try{await pkRegister()}finally{pkBusy=false}return;
+    case 'pkoff':if(pkBusy)break;pkBusy=true;try{await pkOff()}finally{pkBusy=false}return;
+    case 'pklogin':if(pkBusy)break;pkBusy=true;try{await pkLogin()}finally{pkBusy=false}return;
     case 'logout':me=null;if(admin&&admin.viaStaff)admin=null;if(tab==='yon')tab='gun';saveMe();renderAll();return;
     case 'pinchg':{
       var o=prompt('Eski PIN');if(o===null)break;var n=prompt('Yeni PIN (4-8 rakam)');if(n===null)break;
       r=await rpc('staff_change_pin',{p_staff:me.id,p_old:o.trim(),p_new:n.trim()});
       if(r&&r.ok){me.pin=n.trim();if(admin&&admin.viaStaff)admin.pin=me.id+':'+me.pin;saveMe();toast('PIN değiştirildi')}
       break}
+    case 'swapopen':if(el)el.disabled=false;swapSheet(+d.staff,d.day);return;
+    case 'swapclose':swapClose();return;
+    case 'swapgo':{swapClose();r=await rpc('staff_swap_propose',{p_staff:me.id,p_pin:me.pin,p_my_day:d.mine,p_other:+d.staff,p_other_day:d.other});if(r&&r.ok){toast('Takas teklifi gönderildi');await loadSwaps()}return}
+    case 'swapacc':case 'swaprej':{var acc=a==='swapacc';r=await rpc('staff_swap_respond',{p_staff:me.id,p_pin:me.pin,p_id:+d.id,p_accept:acc});if(r&&r.ok){toast(acc?'Takas yapıldı':'Teklif reddedildi');await loadAll();await loadSwaps()}else{await loadSwaps()}break}
+    case 'swapcan':{r=await rpc('staff_swap_cancel',{p_staff:me.id,p_pin:me.pin,p_id:+d.id});if(r&&r.ok){toast('Teklif iptal edildi');await loadSwaps()}break}
     case 'toggle':{
       var on=d.on==='1';
       r=await rpc('staff_set_leave',{p_staff:me.id,p_pin:me.pin,p_day:d.day,p_on:on});
