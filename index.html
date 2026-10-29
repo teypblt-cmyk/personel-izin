@@ -368,7 +368,7 @@ function gateHtml(){
   '<div class="gcard"><label class="gl" for="who">Adınız</label><select id="who"><option value="">Adınızı seçin…</option>'+staff.slice().sort(function(a,b){return a.name.localeCompare(b.name,'tr')}).map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>'+
   '<label class="gl" for="pin">PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="• • • •">'+
   '<button class="btn pri big" data-a="login">Giriş yap</button>'+
-  (pkHas()?'<button class="btn big pkb" data-a="pklogin">Parmak İzi / Face ID ile Gir</button>':'')+
+  (pkHas()?'<button class="btn big pkb" data-a="pklogin">Face ID ile Gir</button>':'')+
   '</div>'+
   '</div>';
 }
@@ -387,17 +387,17 @@ async function pkRegister(){
   if(!(r&&r.ok)){toast((r&&r.error)||'Kurulamadı',1);return}
   var o=r.options,cr;
   var pub={challenge:pb64(o.challenge),rp:o.rp,user:{id:pb64(o.user.id),name:o.user.name,displayName:o.user.displayName},pubKeyCredParams:o.pubKeyCredParams,timeout:o.timeout,attestation:o.attestation,authenticatorSelection:o.authenticatorSelection,excludeCredentials:(o.excludeCredentials||[]).map(function(c){return {type:'public-key',id:pb64(c.id),transports:c.transports}})};
-  try{cr=await navigator.credentials.create({publicKey:pub})}catch(e){toast('Hızlı giriş kurulmadı',1);return}
+  try{cr=await navigator.credentials.create({publicKey:pub})}catch(e){toast('Face ID kurulmadı',1);return}
   var j={id:cr.id,rawId:bb64(cr.rawId),type:cr.type,clientExtensionResults:cr.getClientExtensionResults?cr.getClientExtensionResults():{},response:{clientDataJSON:bb64(cr.response.clientDataJSON),attestationObject:bb64(cr.response.attestationObject),transports:cr.response.getTransports?cr.response.getTransports():[]}};
   if(cr.authenticatorAttachment)j.authenticatorAttachment=cr.authenticatorAttachment;
   var v=await pkApi({action:'reg-verify',staff_id:me.id,pin:me.pin,response:j});
-  if(v&&v.ok){pkSet(me.id,v.cred);renderAuth();toast('Hızlı giriş açıldı')}else toast((v&&v.error)||'Kurulamadı',1);
+  if(v&&v.ok){pkSet(me.id,v.cred);renderAuth();toast('Face ID açıldı')}else toast((v&&v.error)||'Kurulamadı',1);
 }
 var pkAuto=false;
 async function pkLogin(quiet){
   var id=+(($('who')&&$('who').value)||0),m=pkMap();
   if(!id){var l=0;try{l=+localStorage.getItem('izin_last')||0}catch(e){}id=m[l]?l:+Object.keys(m)[0]}
-  if(!m[id]){if(quiet)return;toast('Bu kişi için hızlı giriş kurulu değil. PIN ile girin',1);return}
+  if(!m[id]){if(quiet)return;toast('Bu kişi için Face ID kurulu değil. PIN ile girin',1);return}
   var r=await pkApi({action:'auth-options',staff_id:id});
   if(!(r&&r.ok)){if(r&&/kurulmam/.test(r.error||''))pkSet(id,null);toast((r&&r.error)||'Giriş yapılamadı',1);return}
   var o=r.options,cr;
@@ -406,22 +406,23 @@ async function pkLogin(quiet){
   var j={id:cr.id,rawId:bb64(cr.rawId),type:cr.type,clientExtensionResults:cr.getClientExtensionResults?cr.getClientExtensionResults():{},response:{clientDataJSON:bb64(cr.response.clientDataJSON),authenticatorData:bb64(cr.response.authenticatorData),signature:bb64(cr.response.signature),userHandle:cr.response.userHandle?bb64(cr.response.userHandle):null}};
   var v=await pkApi({action:'auth-verify',staff_id:id,response:j});
   if(!(v&&v.ok&&v.token)){toast((v&&v.error)||'Giriş yapılamadı',1);return}
+  for(var w8=0;w8<100&&!ready;w8++)await new Promise(function(f){setTimeout(f,100)});
   var pin='T:'+v.token,x=await rpc('staff_login',{p_staff:id,p_pin:pin});
   if(x&&x.ok){me={id:id,pin:pin,name:x.name,mustChange:!!x.must_change};if(x.admin)admin={pin:id+':'+pin,viaStaff:true};saveMe();renderAll();toast('Hoş geldiniz '+x.name);if(admin)loadStatus()}
 }
 async function pkOff(){
   var c=pkMap()[me.id];
   if(c)await pkApi({action:'remove',staff_id:me.id,pin:me.pin,cred:c});
-  pkSet(me.id,null);renderAuth();toast('Hızlı giriş kapatıldı');
+  pkSet(me.id,null);renderAuth();toast('Face ID kapatıldı');
 }
 function renderAuth(){
   var el=$('auth'),prev=$('who')?$('who').value:'',h='';
-  var ta=$('topact');if(ta)ta.innerHTML=me?(pkOk()&&!me.mustChange?'<button class="btn s" data-a="'+(pkMap()[me.id]?'pkoff':'pkreg')+'">'+(pkMap()[me.id]?'Hızlı Giriş: Açık':'Hızlı Giriş')+'</button>':'')+'<button class="btn s" data-a="pinchg">PIN</button><button class="btn s" data-a="logout">Çıkış</button>':'';
+  var ta=$('topact');if(ta)ta.innerHTML=me?(pkOk()&&!me.mustChange?'<button class="btn s" data-a="'+(pkMap()[me.id]?'pkoff':'pkreg')+'">'+(pkMap()[me.id]?'Face ID: Açık':'Face ID')+'</button>':'')+'<button class="btn s" data-a="pinchg">PIN</button><button class="btn s" data-a="logout">Çıkış</button>':'';
   if(!me&&!admin){el.style.display='none';el.innerHTML='';return}
   el.style.display='';
   if(me){
   }else{
-    h+='<div class="login"><select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN"><button class="btn pri" data-a="login">Giriş</button></div>'+(pkHas()?'<button class="btn big pkb" data-a="pklogin">Parmak İzi / Face ID ile Gir</button>':'');
+    h+='<div class="login"><select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN"><button class="btn pri" data-a="login">Giriş</button></div>'+(pkHas()?'<button class="btn big pkb" data-a="pklogin">Face ID ile Gir</button>':'');
   }
   if(admin){
     h+='<div class="row adminbar"><b>🛠 '+(admin.viaStaff?'Yönetici yetkiniz açık':'Yönetici modu açık')+'</b><div class="sp"></div><button class="btn s pdfb" data-a="export-pdf" title="Seçili haftanın PDF listesini hazırla ve gönder"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5L13 3.5z"/><text x="12" y="19" font-size="6.5" font-weight="800" text-anchor="middle" fill="#fff">PDF</text></svg> PDF Gönder</button></div>';
@@ -652,7 +653,6 @@ function renderMain(){
   if(!ready){el.innerHTML='<div class="card empty">Yükleniyor…</div>';return}
   if((tab==='yon'||tab==='hrk')&&!admin)tab='gun';
   document.body.classList.toggle('gated',!me&&!admin);
-  if(!me&&!admin&&!pkAuto&&pkHas()){pkAuto=true;setTimeout(function(){if(!me&&!pkBusy){pkBusy=true;pkLogin(true).finally(function(){pkBusy=false})}},500)}
   syncVideo(!me&&!admin);
   if(!me&&!admin){el.innerHTML=gateHtml();fetchPinLen();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
@@ -1045,6 +1045,7 @@ async function init(){
   try{localStorage.removeItem('izin_me')}catch(e){}
   try{sm=JSON.parse(sessionStorage.getItem('izin_me')||'null')}catch(e){}
   try{sa=sessionStorage.getItem('izin_adm')}catch(e){}
+  if(!sm&&!sa&&pkHas()&&!pkAuto){pkAuto=true;pkBusy=true;pkLogin(true).finally(function(){pkBusy=false})}
   await loadAll();
   if(sm&&sm.id&&sm.pin){var r=await rpc('staff_login',{p_staff:sm.id,p_pin:sm.pin},true);
     if(r&&r.ok){me={id:sm.id,pin:sm.pin,name:r.name,mustChange:!!r.must_change};if(r.admin)admin={pin:sm.id+':'+sm.pin,viaStaff:true}}
