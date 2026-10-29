@@ -178,7 +178,8 @@ h1{background:var(--spec);-webkit-background-clip:text;background-clip:text;colo
 .gcard{background:var(--card);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px)}
 select,input,textarea{background:var(--fld);border:1px solid var(--line);border-bottom:2px solid rgba(128,128,160,.55)}
 select:focus,input:focus,textarea:focus{border-bottom-color:var(--pri);box-shadow:0 8px 18px -12px var(--pri)}
-body.gated{background:transparent}
+body.gated{background:transparent;position:fixed;inset:0;width:100%;overflow:hidden;overscroll-behavior:none}
+html:has(body.gated){overflow:hidden;overscroll-behavior:none}
 select option{color:#111;background:#fff}
 @media (prefers-color-scheme:dark){select option{color:#f5f6fb;background:#1b1c27}}
 .swb{padding:3px 9px;font-size:15px;line-height:1}
@@ -368,6 +369,7 @@ function gateHtml(){
   '<div class="gcard"><label class="gl" for="who">Adınız</label><select id="who"><option value="">Adınızı seçin…</option>'+staff.slice().sort(function(a,b){return a.name.localeCompare(b.name,'tr')}).map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>'+
   '<label class="gl" for="pin">PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="• • • •">'+
   '<button class="btn pri big" data-a="login">Giriş yap</button>'+
+  (pkHas()?'<button class="btn big pkb" data-a="pklogin">Parmak İzi / Face ID ile Gir</button>':'')+
   '</div>'+
   '</div>';
 }
@@ -392,15 +394,16 @@ async function pkRegister(){
   var v=await pkApi({action:'reg-verify',staff_id:me.id,pin:me.pin,response:j});
   if(v&&v.ok){pkSet(me.id,v.cred);renderAuth();toast('Hızlı giriş açıldı')}else toast((v&&v.error)||'Kurulamadı',1);
 }
-async function pkLogin(){
+var pkAuto=false;
+async function pkLogin(quiet){
   var id=+(($('who')&&$('who').value)||0),m=pkMap();
   if(!id){var l=0;try{l=+localStorage.getItem('izin_last')||0}catch(e){}id=m[l]?l:+Object.keys(m)[0]}
-  if(!m[id]){toast('Bu kişi için hızlı giriş kurulu değil. PIN ile girin',1);return}
+  if(!m[id]){if(quiet)return;toast('Bu kişi için hızlı giriş kurulu değil. PIN ile girin',1);return}
   var r=await pkApi({action:'auth-options',staff_id:id});
   if(!(r&&r.ok)){if(r&&/kurulmam/.test(r.error||''))pkSet(id,null);toast((r&&r.error)||'Giriş yapılamadı',1);return}
   var o=r.options,cr;
   var pub={challenge:pb64(o.challenge),rpId:o.rpId,timeout:o.timeout,userVerification:o.userVerification,allowCredentials:(o.allowCredentials||[]).map(function(c){return {type:'public-key',id:pb64(c.id),transports:c.transports}})};
-  try{cr=await navigator.credentials.get({publicKey:pub})}catch(e){toast('Giriş iptal edildi',1);return}
+  try{cr=await navigator.credentials.get({publicKey:pub})}catch(e){if(!quiet)toast('Giriş iptal edildi',1);return}
   var j={id:cr.id,rawId:bb64(cr.rawId),type:cr.type,clientExtensionResults:cr.getClientExtensionResults?cr.getClientExtensionResults():{},response:{clientDataJSON:bb64(cr.response.clientDataJSON),authenticatorData:bb64(cr.response.authenticatorData),signature:bb64(cr.response.signature),userHandle:cr.response.userHandle?bb64(cr.response.userHandle):null}};
   var v=await pkApi({action:'auth-verify',staff_id:id,response:j});
   if(!(v&&v.ok&&v.token)){toast((v&&v.error)||'Giriş yapılamadı',1);return}
@@ -650,6 +653,7 @@ function renderMain(){
   if(!ready){el.innerHTML='<div class="card empty">Yükleniyor…</div>';return}
   if((tab==='yon'||tab==='hrk')&&!admin)tab='gun';
   document.body.classList.toggle('gated',!me&&!admin);
+  if(!me&&!admin&&!pkAuto&&pkHas()){pkAuto=true;setTimeout(function(){if(!me&&!pkBusy){pkBusy=true;pkLogin(true).finally(function(){pkBusy=false})}},500)}
   syncVideo(!me&&!admin);
   if(!me&&!admin){el.innerHTML=gateHtml();fetchPinLen();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
