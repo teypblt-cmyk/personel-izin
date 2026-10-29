@@ -516,7 +516,7 @@ function excuseBox(){
 function excCard(){
   if(!exList.length)return '';
   var open=exList.filter(function(e){return !e.done}),dn=exList.filter(function(e){return e.done});
-  function it(e){return '<div class="p"><div style="flex:1"><b>'+esc(e.name)+'</b> <span class="mute s">'+(e.day?esc(dLabel(Math.round(Date.parse(e.day+'T00:00:00Z')/864e5))):'Genel')+' · '+fmtAt(e.at)+'</span><div class="s">'+esc(e.txt)+'</div></div><button class="btn s" data-a="excdone" data-id="'+e.id+'" data-v="'+(e.done?0:1)+'">'+(e.done?'Geri al':'✓ Tamam')+'</button></div>'}
+  function it(e){return '<div class="p"><div style="flex:1"><b>'+esc(e.name)+'</b> <span class="mute s">'+(e.day?esc(dLabel(Math.round(Date.parse(e.day+'T00:00:00Z')/864e5))):'Genel')+' · '+fmtAt(e.at)+'</span><div class="s">'+esc(e.txt)+'</div></div><button class="btn s" data-a="excdone" data-id="'+e.id+'" data-v="'+(e.done?0:1)+'">'+(e.done?'Geri Al':'✓ Tamam')+'</button><button class="btn s out" data-a="excdel" data-id="'+e.id+'">Sil</button></div>'}
   return '<details class="card acc"><summary><span class="ic i2">📝</span><b>Mazeret Bildirimleri</b><span class="mute s"> · '+open.length+' Yeni</span></summary>'+(exList.length?open.map(it).join('')+(dn.length?'<div class="mute s" style="margin:8px 0 2px">Tamamlananlar</div>'+dn.map(it).join(''):''):'<div class="empty">Henüz mazeret yok</div>')+'</details>'}
 document.addEventListener('input',function(e){var t=e.target;if(t&&t.id==='exctxt')excDraft=t.value;if(t&&t.id==='excday')excDay=t.value});
 document.addEventListener('change',function(e){var t=e.target;if(t&&t.id==='excday')excDay=t.value});
@@ -838,6 +838,7 @@ async function act(a,d,el){
       r=await rpc('staff_add_excuse',{p_staff:me.id,p_pin:me.pin,p_day:(dy&&dy.value)||null,p_txt:excDraft});
       if(r&&r.ok){excDraft='';excDay='';renderMain();toast('Mazeretiniz yöneticilere iletildi');pushExcuse()}
       break}
+    case 'excdel':{if(!confirm('Bu mazeret silinsin mi?'))break;r=await rpc('admin_excuse_delete',{p_pin:admin.pin,p_id:+d.id});if(r&&r.ok){exList=exList.filter(function(e){return e.id!==+d.id});renderMain();toast('Mazeret silindi')}break}
     case 'excdone':{r=await rpc('admin_excuse_done',{p_pin:admin.pin,p_id:+d.id,p_done:d.v==='1'});if(r&&r.ok)loadStatus();break}
     case 'pushtog':await pushToggle();break;
     case 'exempt':{
