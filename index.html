@@ -653,6 +653,7 @@ function renderMain(){
   if(!ready){el.innerHTML='<div class="card empty">Yükleniyor…</div>';return}
   if((tab==='yon'||tab==='hrk')&&!admin)tab='gun';
   document.body.classList.toggle('gated',!me&&!admin);
+  if(!me&&!admin&&!pkAuto&&pkHas()){pkAuto=true;setTimeout(function(){if(!me&&!pkBusy){pkBusy=true;pkLogin(true).finally(function(){pkBusy=false})}},500)}
   syncVideo(!me&&!admin);
   if(!me&&!admin){el.innerHTML=gateHtml();fetchPinLen();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
