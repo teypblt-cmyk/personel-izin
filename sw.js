@@ -1,7 +1,7 @@
 // Önce ağ, olmazsa önbellek. Sadece bu sitenin kendi dosyalarını yakalar;
 // Supabase ve CDN istekleri doğrudan gider (veri hiçbir zaman eski gösterilmez).
-const V = 'izin-v3';
-const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
+const V = 'izin-v4';
+const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'giris-ikon.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });

@@ -46,7 +46,7 @@ textarea{width:100%;min-height:100px;margin:6px 0}
 .stf .btn.star{font-size:17px;line-height:1;padding:4px 10px;color:var(--mute)}.stf .btn.star.on{color:#e0a100;border-color:#e0a100;background:var(--waitbg)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}.chip{background:var(--fld);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13.5px}
 .gate{max-width:380px;margin:5vh auto 0;display:flex;flex-direction:column;align-items:center;text-align:center}
-.glogo{width:84px;height:84px;border-radius:26px;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#4f8bff,#2f56e6 60%,#6a30e6);box-shadow:0 14px 30px -10px rgba(47,86,230,.55);margin-bottom:14px}
+.glogo{width:96px;height:96px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 10px 18px rgba(0,0,0,.45));margin-bottom:14px}.glogo img{width:100%;height:100%;display:block}
 .gate h2{margin:0;font-size:26px;letter-spacing:-.4px}
 .gsub{margin:4px 0 20px;color:var(--mute);font-size:14.5px}
 .gcard{width:100%;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px 16px 16px;box-shadow:0 18px 40px -22px rgba(20,33,61,.35);text-align:left}
@@ -362,7 +362,7 @@ function autoLogin(){
 function gateHtml(){
   var prev=$('who')?$('who').value:'';
   if(!prev){try{prev=localStorage.getItem('izin_last')||''}catch(e){}}
-  var logo='<svg viewBox="0 0 64 64" width="44" height="44" aria-hidden="true"><rect x="8" y="12" width="48" height="44" rx="10" fill="#fff" fill-opacity=".95"/><rect x="8" y="12" width="48" height="14" rx="10" fill="#fff" fill-opacity=".55"/><rect x="19" y="5" width="6" height="14" rx="3" fill="#fff"/><rect x="39" y="5" width="6" height="14" rx="3" fill="#fff"/><path d="M21 40l8 8 15-17" fill="none" stroke="#2f6bff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var logo='<img src="giris-ikon.png" width="96" height="96" alt="Kartallar" decoding="async">';
   return '<div class="gate"><div class="glogo">'+logo+'</div><h2>Personel İzin</h2><p class="gsub">Haftalık izin seçimi</p>'+
   '<div class="gcard"><label class="gl" for="who">Adınız</label><select id="who"><option value="">Adınızı seçin…</option>'+staff.slice().sort(function(a,b){return a.name.localeCompare(b.name,'tr')}).map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>'+
   '<label class="gl" for="pin">PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="• • • •">'+
