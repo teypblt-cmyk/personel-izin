@@ -560,7 +560,7 @@ function pinSetup(){
 }
 function maxWeek(){return weekMon(todayNum())+(admin?7*52:7)}
 /* ---------- mesajlar (kişi ↔ yöneticiler, kişi başına tek sohbet) ---------- */
-var msgDraft='',msgList=[],msgSig='',msgObs=null,exList=[],exSig='',msgOpen=false,openThread=null,admDraft={},msgPollT=0;
+var msgDraft='',msgList=[],msgSig='',msgObs=null,msgBoxOpen=false,exList=[],exSig='',msgOpen=false,openThread=null,admDraft={},msgPollT=0;
 function dayTag(d){return d?'📅 '+esc(dLabel(Math.round(Date.parse(d+'T00:00:00Z')/864e5)))+' · ':''}
 function bubble(m,right,canDel,nw){
   return '<div class="bb'+(right?' me':'')+(nw?' nw':'')+'"><div>'+esc(m.txt)+'</div><span class="mt">'+dayTag(m.day)+(m.a?esc(m.by||'Yönetici')+' · ':'')+esc(fmtAt(m.at))+(canDel?' · <button class="lnk" data-a="msgdel" data-id="'+m.id+'">Sil</button>':'')+'</span></div>'}
@@ -570,10 +570,11 @@ function msgUnread(){var n=0;msgList.forEach(function(m){if(m.a&&!m.seen)n++});r
 function msgBanner(){return (me&&!meAdm()&&msgUnread())?'<button class="card nb" data-a="msggo">📩 Yöneticiden yeni mesaj var</button>':''}
 function msgBox(){
   if(!me||meAdm()||isTop(staffById[me.id]||{}))return '';
-  var h='<div class="card" id="msgbox"><div class="sub">💬 Yöneticiye Mesaj</div>';
+  var nw=msgUnread();if(nw)msgBoxOpen=true; /* okunmamış yanıt varsa kendiliğinden açılır */
+  var h='<details class="card acc" id="msgbox"'+(msgBoxOpen?' open':'')+'><summary><span class="ic i2">💬</span><b>Yöneticiye Mesaj</b>'+(nw?'<span class="tag wait">Yeni yanıt</span>':'')+'</summary>';
   h+=msgList.length?'<div class="chat">'+staffBubbles()+'</div>'
     :'<div class="mute s">Mazeretinizi ya da sorunuzu yazın. Yalnızca yöneticiler görür.</div>';
-  return h+'<textarea id="msgtxt" class="mtx" maxlength="400" placeholder="Mesajınızı yazın…">'+esc(msgDraft)+'</textarea><button class="btn pri big" data-a="msgsend">Gönder</button></div>'}
+  return h+'<textarea id="msgtxt" class="mtx" maxlength="400" placeholder="Mesajınızı yazın…">'+esc(msgDraft)+'</textarea><button class="btn pri big" data-a="msgsend">Gönder</button></details>'}
 function msgAdmin(){
   var th={},ord=[],tot=0;
   exList.forEach(function(e){var t=th[e.sid];if(!t){t=th[e.sid]={name:e.name,nw:0,last:e};ord.push(e.sid)}if(!e.a&&!e.done){t.nw++;tot++}});
@@ -621,7 +622,7 @@ function afterMain(){
   watchMsg()}
 function watchMsg(){
   if(msgObs){msgObs.disconnect();msgObs=null}
-  var el=$('msgbox');if(!el||!msgUnread()||!('IntersectionObserver' in window))return;
+  var el=$('msgbox');if(!el||!el.open||!msgUnread()||!('IntersectionObserver' in window))return;
   msgObs=new IntersectionObserver(function(es){if(es.some(function(x){return x.isIntersecting})){msgObs.disconnect();msgObs=null;setTimeout(markMsgSeen,1500)}},{threshold:.4});
   msgObs.observe(el)}
 document.addEventListener('input',function(e){var t=e.target;if(!t||!t.id)return;if(t.id==='msgtxt')msgDraft=t.value;else if(t.id.indexOf('amsg-')===0)admDraft[+t.id.slice(5)]=t.value});
@@ -651,6 +652,7 @@ function scheduleRender(){
 }
 document.addEventListener('focusout',function(){if(pendingRender){pendingRender=false;setTimeout(scheduleRender,250)}});
 document.addEventListener('toggle',function(e){var t=e.target;if(t&&t.id==='how')howOpen=t.open;if(t&&t.id==='stfbox')staffOpen=t.open;if(t&&t.id==='msgacc')msgOpen=t.open;
+  if(t&&t.id==='msgbox'){msgBoxOpen=t.open;if(t.open){var mc=t.querySelector('.chat');if(mc)mc.scrollTop=mc.scrollHeight;watchMsg()}}
   if(t&&t.classList&&t.classList.contains('th')){var sid=+t.dataset.sid;if(t.open){openThread=sid;var kp=0;document.querySelectorAll('#main details.th[open]').forEach(function(x){if(x!==t){x.open=false;kp++}});if(kp)t.scrollIntoView({block:'nearest'});var ch=t.querySelector('.chat');if(ch)ch.scrollTop=ch.scrollHeight;markThreadRead(sid)}else if(openThread===sid)openThread=null}},true);
 
 /* ---------- veri ---------- */
@@ -944,7 +946,7 @@ async function act(a,d,el){
       r=await rpc('admin_reset_pin',{p_pin:admin.pin,p_staff:+d.id,p_new:'0000'});
       if(r&&r.ok){await loadStatus();toast(r.name+' PIN\'i 0000 yapıldı')}
       break}
-    case 'msggo':{var mb=$('msgbox');if(mb)mb.scrollIntoView({behavior:'smooth',block:'start'});markMsgSeen();break}
+    case 'msggo':{msgBoxOpen=true;var mb=$('msgbox');if(mb){mb.open=true;mb.scrollIntoView({behavior:'smooth',block:'start'})}markMsgSeen();break}
     case 'msgsend':{var tx=$('msgtxt');msgDraft=tx?tx.value:msgDraft;
       if(!msgDraft.trim()){toast('Mesajınızı yazın',1);break}
       r=await rpc('staff_add_excuse',{p_staff:me.id,p_pin:me.pin,p_day:null,p_txt:msgDraft});
