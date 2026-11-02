@@ -308,9 +308,10 @@ function computeLocal(){
       req.sort(function(a,b){return (pct[b.staff_id][i]-pct[a.staff_id][i])||(ts(a.created_at)-ts(b.created_at))||nm(a).localeCompare(nm(b),'tr')});
       var rule=rules.get(ds)||{},q=(rule.quota!=null)?rule.quota:DEFQ[i];
       var fx=req.filter(function(l){return staffById[l.staff_id].exempt}),rq=req.filter(function(l){return !staffById[l.staff_id].exempt});
-      var slots=(q==null)?rq.length:Math.max(0,q-fixed.length);
+      var qfix=fixed.filter(function(l){return l.type==='M'}).length;
+      var slots=(q==null)?rq.length:Math.max(0,q-qfix);
       var ok=fx.concat(rq.slice(0,slots)),okIds={};ok.forEach(function(l){okIds[l.staff_id]=1});
-      res.push({ds:ds,fixed:fixed,ok:ok,okIds:okIds,wait:rq.slice(slots),quota:q,locked:!!rule.locked,used:fixed.length+ok.length-fx.length});
+      res.push({ds:ds,fixed:fixed,ok:ok,okIds:okIds,wait:rq.slice(slots),quota:q,locked:!!rule.locked,used:qfix+ok.length-fx.length});
     })(i);
   }
   lastRes=res;
