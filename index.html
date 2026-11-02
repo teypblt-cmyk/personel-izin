@@ -180,10 +180,6 @@ select:focus,input:focus,textarea:focus{border-bottom-color:var(--pri);box-shado
 body.gated{background:transparent;box-sizing:border-box;min-height:0;height:100vh;height:100dvh;padding-bottom:0}
 select option{color:#111;background:#fff}
 @media (prefers-color-scheme:dark){select option{color:#f5f6fb;background:#1b1c27}}
-.swb{padding:3px 9px;font-size:15px;line-height:1}
-#swov{position:fixed;inset:0;z-index:20;display:none}.swbg{position:absolute;inset:0;background:rgba(0,0,0,.55)}
-.swsh{position:absolute;left:0;right:0;bottom:0;max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:16px 16px 0 0;padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px));-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
-.sw{flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -309,10 +305,10 @@ function computeLocal(){
       var ds=dstr(week+i),rows=by.get(ds)||[],fixed=[],req=[];
       rows.forEach(function(l){(l.type==='I'?req:fixed).push(l)});
       fixed.sort(function(a,b){return a.type<b.type?-1:a.type>b.type?1:nm(a).localeCompare(nm(b),'tr')});
-      req.sort(function(a,b){return ((b.swap?1:0)-(a.swap?1:0))||(pct[b.staff_id][i]-pct[a.staff_id][i])||(ts(a.created_at)-ts(b.created_at))||nm(a).localeCompare(nm(b),'tr')});
+      req.sort(function(a,b){return (pct[b.staff_id][i]-pct[a.staff_id][i])||(ts(a.created_at)-ts(b.created_at))||nm(a).localeCompare(nm(b),'tr')});
       var rule=rules.get(ds)||{},q=(rule.quota!=null)?rule.quota:DEFQ[i];
       var fx=req.filter(function(l){return staffById[l.staff_id].exempt}),rq=req.filter(function(l){return !staffById[l.staff_id].exempt});
-      var nsw=rq.filter(function(l){return l.swap}).length,slots=(q==null)?rq.length:Math.max(0,q-fixed.length,nsw);
+      var slots=(q==null)?rq.length:Math.max(0,q-fixed.length);
       var ok=fx.concat(rq.slice(0,slots)),okIds={};ok.forEach(function(l){okIds[l.staff_id]=1});
       res.push({ds:ds,fixed:fixed,ok:ok,okIds:okIds,wait:rq.slice(slots),quota:q,locked:!!rule.locked,used:fixed.length+ok.length-fx.length});
     })(i);
@@ -430,45 +426,8 @@ function row(l,st,i,pct){
   if(admin){
     ctl='<select class="rs" data-a="setrow" data-day="'+l.day+'" data-staff="'+l.staff_id+'">'+['I','M','Y','R'].map(function(t){return '<option value="'+t+'"'+(t===l.type?' selected':'')+'>'+TN[t]+'</option>'}).join('')+'<option value="">Kaldır</option></select>';
   }
-  if(st==='ok'&&l.type==='I'&&me&&!mine&&!admin&&swapAllowed(l.day)&&myTradables().length)ctl+='<button class="btn s swb" data-a="swapopen" data-staff="'+l.staff_id+'" data-day="'+l.day+'" title="Bu günle takas teklif et">⇄</button>';
-  return '<div class="p'+(mine?' me':'')+'"><span class="nm">'+esc(s.name)+'</span>'+tag+(l.swap?'<span class="tag fix">Takas</span>':'')+pc+ctl+'</div>';
+  return '<div class="p'+(mine?' me':'')+'"><span class="nm">'+esc(s.name)+'</span>'+tag+pc+ctl+'</div>';
 }
-
-/* ---------- takas ---------- */
-var swList={incoming:[],outgoing:[]},swSig='';
-function swapAllowed(ds){var n=dnum(ds),tn=todayNum(),rl=rules.get(ds);return n>=tn&&n<weekMon(tn)+14&&!(rl&&rl.locked)}
-function okOn(sid,ds){
-  var n=dnum(ds),wm=dstr(weekMon(n)),c=wsCache[wm];
-  if(c&&c.js&&c.js.days){var d=c.js.days[n-weekMon(n)];if(d)return d.ok.indexOf(sid)>=0}
-  if(lastRes){for(var i=0;i<lastRes.length;i++)if(lastRes[i].ds===ds)return !!lastRes[i].okIds[sid]}
-  return null}
-function myTradables(){
-  var out=[];if(!me)return out;
-  leaves.forEach(function(l){if(l.staff_id===me.id&&l.type==='I'&&swapAllowed(l.day)&&okOn(me.id,l.day)!==false)out.push(l.day)});
-  out.sort();return out}
-function dayName(ds){var n=dnum(ds);return DAYS[wdOf(n)]+' '+dLabelF(n)}
-async function loadSwaps(){
-  if(!me){swList={incoming:[],outgoing:[]};swSig='';return}
-  if(!sb)return;
-  var r=await rpc('staff_swap_list',{p_staff:me.id,p_pin:me.pin},true);
-  if(r&&r.ok){var sg=JSON.stringify([r.incoming,r.outgoing]);if(sg!==swSig){swSig=sg;swList={incoming:r.incoming||[],outgoing:r.outgoing||[]};scheduleRender()}}}
-function swapCard(){
-  if(!me||(!swList.incoming.length&&!swList.outgoing.length))return '';
-  var h='<div class="card"><div class="sub"><span class="ic i4">⇄</span>Takas</div>';
-  swList.incoming.forEach(function(t){
-    h+='<div class="p sw"><div style="flex:1"><b>'+esc(t.who)+'</b> <span class="s">'+esc(dayName(t.give))+' gününüzü almak istiyor, karşılığında <b>'+esc(dayName(t.take))+'</b> gününü veriyor.</span></div><button class="btn s grn" data-a="swapacc" data-id="'+t.id+'">Kabul Et</button><button class="btn s out" data-a="swaprej" data-id="'+t.id+'">Reddet</button></div>'});
-  swList.outgoing.forEach(function(t){
-    h+='<div class="p sw"><div style="flex:1" class="s"><b>'+esc(t.who)+'</b> kişisine teklif: <b>'+esc(dayName(t.give))+'</b> ⇄ <b>'+esc(dayName(t.take))+'</b> · Yanıt bekleniyor</div><button class="btn s out" data-a="swapcan" data-id="'+t.id+'">İptal</button></div>'});
-  return h+'</div>'}
-function swapSheet(otherId,otherDay){
-  var days=myTradables(),o=$('swov');
-  if(!o){o=document.createElement('div');o.id='swov';document.body.appendChild(o)}
-  var nm=staffById[otherId]?staffById[otherId].name:'?';
-  o.innerHTML='<div class="swbg" data-a="swapclose"></div><div class="swsh"><div class="sub" style="margin-top:0">Takas Teklifi</div><div class="s mute" style="margin-bottom:10px"><b>'+esc(nm)+'</b> kişisinin <b>'+esc(dayName(otherDay))+'</b> gününü almak için hangi gününüzü verirsiniz?</div>'+
-    (days.length?days.map(function(ds){return '<button class="btn big" data-a="swapgo" data-staff="'+otherId+'" data-other="'+otherDay+'" data-mine="'+ds+'">'+esc(dayName(ds))+'</button>'}).join(''):'<div class="empty">Takas edebileceğiniz onaylı bir gününüz yok</div>')+
-    '<button class="btn out big" data-a="swapclose" style="margin-top:0">Vazgeç</button></div>';
-  o.style.display='block'}
-function swapClose(){var o=$('swov');if(o){o.style.display='none';o.innerHTML=''}}
 
 var OWNER_ID=11;
 var TOPNAMES=['Nilgün Gül'];
@@ -613,7 +572,7 @@ function renderMain(){
   if(!me&&!admin){el.innerHTML=gateHtml();fetchPinLen();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
   var h='';
-  if(tab==='gun'){var c=compute();h=weekHead()+swapCard()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])+excuseBox()}
+  if(tab==='gun'){var c=compute();h=weekHead()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])+excuseBox()}
   else if(tab==='yuzde'){h=weekHead()+pctTable(compute())}
   else if(tab==='yon'){h=adminTab()}
   else if(tab==='hrk'){h=logTab()}
@@ -648,7 +607,7 @@ async function loadAll(){
   try{
     var r=await Promise.all([
       loadStaff(),
-      fetchAll('leaves','staff_id,day,type,created_at,swap',['day','staff_id']),
+      fetchAll('leaves','staff_id,day,type,created_at',['day','staff_id']),
       sb.from('day_rules').select('day,quota,locked'),
       sb.from('log').select('id,at,who,action,day,detail').order('id',{ascending:false}).limit(40)]);
     if(r[2].error)throw r[2].error;if(r[3].error)throw r[3].error;
@@ -660,7 +619,6 @@ async function loadAll(){
     if(!me&&admin&&admin.viaStaff)admin=null;
     var a=document.activeElement;
     if(a&&a.closest&&a.closest('#main')&&/^(SELECT|INPUT|TEXTAREA)$/.test(a.tagName)){pendingRender=true}else renderAll();
-    loadSwaps();
   }catch(e){setErr('Sunucuya ulaşılamadı, yeniden deniyorum… ('+(e.message||e)+')')}
 }
 function onChange(t,p){
@@ -706,7 +664,7 @@ function setLocal(staffId,day,type){
   else{var k=staffId+'|'+day,o=leaves.get(k);leaves.set(k,{staff_id:staffId,day:day,type:type,created_at:o?o.created_at:new Date().toISOString()})}}
 /* Giriş yalnızca bu oturum boyunca (sekme/uygulama kapanana kadar) hatırlanır.
    Uygulama ya da tarayıcı kapatılınca sessionStorage silinir ve kişi çıkış yapmış olur. */
-function saveMe(){try{if(me){sessionStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));localStorage.setItem('izin_last',String(me.id))}else sessionStorage.removeItem('izin_me');localStorage.removeItem('izin_me')}catch(e){}pushCheck();loadSwaps()}
+function saveMe(){try{if(me){sessionStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));localStorage.setItem('izin_last',String(me.id))}else sessionStorage.removeItem('izin_me');localStorage.removeItem('izin_me')}catch(e){}pushCheck()}
 function saveAdm(){try{if(admin&&!admin.viaStaff)sessionStorage.setItem('izin_adm',admin.pin);else sessionStorage.removeItem('izin_adm')}catch(e){}}
 
 var lastRes=[];
@@ -838,11 +796,6 @@ async function act(a,d,el){
       r=await rpc('staff_change_pin',{p_staff:me.id,p_old:o.trim(),p_new:n.trim()});
       if(r&&r.ok){me.pin=n.trim();if(admin&&admin.viaStaff)admin.pin=me.id+':'+me.pin;saveMe();toast('PIN değiştirildi')}
       break}
-    case 'swapopen':if(el)el.disabled=false;swapSheet(+d.staff,d.day);return;
-    case 'swapclose':swapClose();return;
-    case 'swapgo':{swapClose();r=await rpc('staff_swap_propose',{p_staff:me.id,p_pin:me.pin,p_my_day:d.mine,p_other:+d.staff,p_other_day:d.other});if(r&&r.ok){toast('Takas teklifi gönderildi');await loadSwaps()}return}
-    case 'swapacc':case 'swaprej':{var acc=a==='swapacc';r=await rpc('staff_swap_respond',{p_staff:me.id,p_pin:me.pin,p_id:+d.id,p_accept:acc});if(r&&r.ok){toast(acc?'Takas yapıldı':'Teklif reddedildi');await loadAll();await loadSwaps()}else{await loadSwaps()}break}
-    case 'swapcan':{r=await rpc('staff_swap_cancel',{p_staff:me.id,p_pin:me.pin,p_id:+d.id});if(r&&r.ok){toast('Teklif iptal edildi');await loadSwaps()}break}
     case 'toggle':{
       var on=d.on==='1';
       r=await rpc('staff_set_leave',{p_staff:me.id,p_pin:me.pin,p_day:d.day,p_on:on});
