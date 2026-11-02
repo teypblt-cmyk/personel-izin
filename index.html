@@ -560,32 +560,53 @@ function pinSetup(){
 }
 function maxWeek(){return weekMon(todayNum())+(admin?7*52:7)}
 /* ---------- mesajlar (kişi ↔ yöneticiler, kişi başına tek sohbet) ---------- */
-var msgDraft='',msgList=[],msgSig='',msgObs=null,exList=[],msgOpen=false,openThread=null,admDraft={};
+var msgDraft='',msgList=[],msgSig='',msgObs=null,exList=[],exSig='',msgOpen=false,openThread=null,admDraft={},msgPollT=0;
 function dayTag(d){return d?'📅 '+esc(dLabel(Math.round(Date.parse(d+'T00:00:00Z')/864e5)))+' · ':''}
-function bubble(m,right,canDel){
-  return '<div class="bb'+(right?' me':'')+(m.nw?' nw':'')+'"><div>'+esc(m.txt)+'</div><span class="mt">'+dayTag(m.day)+(m.a?esc(m.by||'Yönetici')+' · ':'')+esc(fmtAt(m.at))+(canDel?' · <button class="lnk" data-a="msgdel" data-id="'+m.id+'">Sil</button>':'')+'</span></div>'}
+function bubble(m,right,canDel,nw){
+  return '<div class="bb'+(right?' me':'')+(nw?' nw':'')+'"><div>'+esc(m.txt)+'</div><span class="mt">'+dayTag(m.day)+(m.a?esc(m.by||'Yönetici')+' · ':'')+esc(fmtAt(m.at))+(canDel?' · <button class="lnk" data-a="msgdel" data-id="'+m.id+'">Sil</button>':'')+'</span></div>'}
+function staffBubbles(){return msgList.map(function(m){return bubble(m,!m.a,false,m.a&&!m.seen)}).join('')}
+function threadBubbles(sid){return exList.filter(function(e){return e.sid===sid}).reverse().map(function(m){return bubble(m,m.a,true,!m.a&&!m.done)}).join('')}
 function msgUnread(){var n=0;msgList.forEach(function(m){if(m.a&&!m.seen)n++});return n}
 function msgBanner(){return (me&&!meAdm()&&msgUnread())?'<button class="card nb" data-a="msggo">📩 Yöneticiden yeni mesaj var</button>':''}
 function msgBox(){
   if(!me||meAdm()||isTop(staffById[me.id]||{}))return '';
   var h='<div class="card" id="msgbox"><div class="sub">💬 Yöneticiye Mesaj</div>';
-  h+=msgList.length?'<div class="chat">'+msgList.map(function(m){return bubble({id:m.id,txt:m.txt,at:m.at,day:m.day,a:m.a,by:m.by,nw:m.a&&!m.seen},!m.a,false)}).join('')+'</div>'
+  h+=msgList.length?'<div class="chat">'+staffBubbles()+'</div>'
     :'<div class="mute s">Mazeretinizi ya da sorunuzu yazın. Yalnızca yöneticiler görür.</div>';
   return h+'<textarea id="msgtxt" class="mtx" maxlength="400" placeholder="Mesajınızı yazın…">'+esc(msgDraft)+'</textarea><button class="btn pri big" data-a="msgsend">Gönder</button></div>'}
 function msgAdmin(){
   var th={},ord=[],tot=0;
-  exList.forEach(function(e){var t=th[e.sid];if(!t){t=th[e.sid]={name:e.name,list:[],nw:0,last:e};ord.push(e.sid)}t.list.push(e);if(!e.a&&!e.done){t.nw++;tot++}});
+  exList.forEach(function(e){var t=th[e.sid];if(!t){t=th[e.sid]={name:e.name,nw:0,last:e};ord.push(e.sid)}if(!e.a&&!e.done){t.nw++;tot++}});
   var h='<details class="card acc" id="msgacc"'+(msgOpen?' open':'')+'><summary><span class="ic i2">💬</span><b>Mesajlar</b><span class="mute s"> · '+(tot?tot+' Yeni':ord.length+' Kişi')+'</span></summary>';
   if(!ord.length)return h+'<div class="empty">Henüz mesaj yok</div></details>';
   ord.forEach(function(sid){var t=th[sid],l=t.last;
     h+='<details class="th" data-sid="'+sid+'"'+(openThread===sid?' open':'')+'><summary><b>'+esc(t.name)+'</b>'+(t.nw?'<span class="tag wait">'+t.nw+' yeni</span>':'')+'<span class="mute s pv">'+(l.a?'Yönetici: ':'')+esc(l.txt)+'</span></summary>'
-      +'<div class="chat">'+t.list.slice().reverse().map(function(m){return bubble({id:m.id,txt:m.txt,at:m.at,day:m.day,a:m.a,by:m.by,nw:!m.a&&!m.done},m.a,true)}).join('')+'</div>'
+      +'<div class="chat">'+threadBubbles(sid)+'</div>'
       +'<textarea id="amsg-'+sid+'" class="mtx" maxlength="400" placeholder="Yanıtınızı yazın…">'+esc(admDraft[sid]||'')+'</textarea><button class="btn pri" data-a="amsgsend" data-id="'+sid+'">Gönder</button></details>'});
   return h+'</details>'}
+/* Yazarken sayfayı baştan çizmek klavyeyi kapatır. Yazı alanı odaktaysa yalnızca
+   sohbet balonları yerinde güncellenir, sayfanın geri kalanı odaktan çıkınca çizilir. */
+function msgChanged(){
+  var a=document.activeElement;
+  if(!(a&&a.closest&&a.closest('#main')&&/^(SELECT|INPUT|TEXTAREA)$/.test(a.tagName))){scheduleRender();return}
+  var c=document.querySelector('#msgbox .chat');if(c){c.innerHTML=staffBubbles();c.scrollTop=c.scrollHeight}
+  var t=openThread!=null&&document.querySelector('#main details.th[open][data-sid="'+openThread+'"] .chat');if(t){t.innerHTML=threadBubbles(openThread);t.scrollTop=t.scrollHeight}
+  watchMsg();pendingRender=true}
 async function loadMsgs(){
   if(!me||!sb||meAdm()){msgList=[];msgSig='';return}
   var r=await rpc('staff_messages',{p_staff:me.id,p_pin:me.pin},true);
-  if(r&&r.ok){var sg=JSON.stringify(r.list);if(sg!==msgSig){msgSig=sg;msgList=r.list||[];if(tab==='gun')scheduleRender()}}}
+  if(r&&r.ok){var sg=JSON.stringify(r.list);if(sg!==msgSig){msgSig=sg;msgList=r.list||[];if(tab==='gun')msgChanged()}}}
+async function loadAdminMsgs(){
+  if(!admin||!sb)return;
+  var r=await rpc('admin_list_excuses',{p_pin:admin.pin},true);
+  if(r&&r.ok){var sg=JSON.stringify(r.list);if(sg!==exSig){exSig=sg;exList=r.list||[];
+    if(tab==='yon'){if(openThread!=null&&document.querySelector('#main details.th[open][data-sid="'+openThread+'"]'))markThreadRead(openThread);msgChanged()}}}}
+/* Sayfa görünürken ve sohbetin olduğu sekmedeyken 10 saniyede bir yeni mesaj var mı bakılır. */
+function msgPoll(){
+  clearTimeout(msgPollT);
+  msgPollT=setTimeout(async function(){
+    try{if(!document.hidden){if(tab==='gun'&&me&&!meAdm())await loadMsgs();else if(tab==='yon'&&admin)await loadAdminMsgs()}}catch(e){}
+    msgPoll()},10000)}
 async function markMsgSeen(){
   if(!me||!msgUnread())return;
   msgList.forEach(function(m){if(m.a)m.seen=true});msgSig='';scheduleRender();
@@ -597,6 +618,8 @@ async function markThreadRead(sid){
   await rpc('admin_thread_read',{p_pin:admin.pin,p_staff:sid},true)}
 function afterMain(){
   document.querySelectorAll('#main .chat').forEach(function(c){c.scrollTop=c.scrollHeight});
+  watchMsg()}
+function watchMsg(){
   if(msgObs){msgObs.disconnect();msgObs=null}
   var el=$('msgbox');if(!el||!msgUnread()||!('IntersectionObserver' in window))return;
   msgObs=new IntersectionObserver(function(es){if(es.some(function(x){return x.isIntersecting})){msgObs.disconnect();msgObs=null;setTimeout(markMsgSeen,1500)}},{threshold:.4});
@@ -643,7 +666,7 @@ async function loadStatus(norender){
   if(!admin)return;
   var r=await rpc('admin_staff_status',{p_pin:admin.pin},true);
   if(r&&r.ok){statusList=r.list;if(!norender&&tab==='yon')scheduleRender()}
-  var er=await rpc('admin_list_excuses',{p_pin:admin.pin},true);if(er&&er.ok){exList=er.list;if(!norender&&tab==='yon')scheduleRender()}
+  var er=await rpc('admin_list_excuses',{p_pin:admin.pin},true);if(er&&er.ok){exList=er.list;exSig=JSON.stringify(er.list);if(!norender&&tab==='yon')scheduleRender()}
 }
 async function loadAll(){
   try{
@@ -1004,7 +1027,7 @@ async function init(){
     if(r&&r.ok){me={id:sm.id,pin:sm.pin,name:r.name,mustChange:!!r.must_change};if(r.admin)admin={pin:sm.id+':'+sm.pin,viaStaff:true}}
     else if(r){me=null;saveMe()}}
   if(sa&&!admin){var r2=await rpc('admin_login',{p_pin:sa},true);if(r2&&r2.ok)admin={pin:sa};else if(r2){admin=null;saveAdm()}}
-  renderAll();
+  renderAll();msgPoll();
   if(admin)loadStatus();
   subscribe();poll();
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')loadAll()});
