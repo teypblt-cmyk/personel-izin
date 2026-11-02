@@ -108,6 +108,18 @@ table.pt{border-collapse:separate;border-spacing:0;table-layout:fixed;width:100%
 @media (prefers-color-scheme:dark){.i1{background:#5a2b30}.i2{background:#524515}.i3{background:#1f3b5c}.i4{background:#5a3a17}.i5{background:#444}.i6{background:#1f3b1d}.i7{background:#3d3360}}.sub:first-child{margin-top:0}
 .pinout{white-space:pre-wrap;background:var(--fld);border-radius:10px;padding:8px;margin:8px 0 0;font:13px/1.5 ui-monospace,Menlo,monospace}
 .pinout:empty{display:none}
+.chat{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;padding:2px;margin:8px 0 4px}
+.bb{max-width:85%;align-self:flex-start;background:var(--fld);border:1px solid var(--line);border-radius:12px 12px 12px 4px;padding:7px 10px;font-size:14.5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.bb.me{align-self:flex-end;background:var(--pri);border-color:var(--pri);color:var(--onp);border-radius:12px 12px 4px 12px}
+@media (prefers-color-scheme:dark){.bb.me{background:#2c64d6;border-color:#2c64d6;color:#fff}}
+.bb.nw{box-shadow:0 0 0 2px var(--wait)}
+.bb .mt{display:block;font-size:11.5px;opacity:.75;margin-top:3px;white-space:normal}
+.lnk{background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font-size:inherit}
+textarea.mtx{min-height:64px}
+.nb{display:block;width:100%;text-align:left;cursor:pointer;font-weight:700;border-color:var(--wait)}
+.th{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;background:var(--fld)}
+.th>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;min-width:0}.th>summary::-webkit-details-marker{display:none}
+.th .pv{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
 .adminbar{background:var(--fixbg);color:var(--fix);border-radius:8px;padding:8px 10px;margin-top:8px}
 .adminbar{display:flex;align-items:center;gap:8px}.pdfb{display:inline-flex;align-items:center;gap:6px;background:#d93a3a;color:#fff;border-color:#d93a3a;font-weight:700}
 .inst{border-color:var(--pri)}
@@ -532,7 +544,7 @@ function wkBtn(){var all=true;for(var i=0;i<7;i++){var r=rules.get(dstr(week+i))
 function adminTab(){
   var st={};statusList.forEach(function(x){st[x.id]=x});
   var h=weekHead()+'<div class="card"><div class="sub"><span class="ic i1">🔒</span>Hafta Kilidi</div><div class="row"><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+'</span><div class="sp"></div>'+wkBtn()+'</div></div>';
-  h+=excCard();
+  h+=msgAdmin();
   h+='<details class="card acc" id="stfbox"'+(staffOpen?' open':'')+'><summary><span class="ic i3">👥</span><b>Personel, PIN Ve Yetki</b><span class="mute s"> · '+staff.length+' Kişi</span></summary>'+staff.map(function(s){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')):'Durum yükleniyor…';
     return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b>'+(me&&me.id===s.id&&meAdm()&&pushOk()?' <button class="bell'+(pushMine?' on':'')+'" data-a="pushtog" aria-label="Mazeret bildirimi" title="'+(pushMine?'Bildirim açık, kapatmak için dokunun':'Mazeret geldiğinde bildirim almak için dokunun')+'">'+(pushMine?'🔔':'🔕')+'</button>':'')+'<div class="s mute">'+badge+'</div></div><div class="btns">'+((s.id===OWNER_ID&&!(me&&me.id===OWNER_ID))?'<span class="mute s">🔒 Yalnızca kendisi değiştirebilir</span>':'<button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN Sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği Kaldır':'Yönetici Yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button>')+'</div></div>'}).join('');
@@ -547,19 +559,49 @@ function pinSetup(){
   return '<div class="card"><div class="sub">Kendi PIN\'inizi belirleyin</div><div class="mute s" style="margin-bottom:10px">İlk girişte size verilen PIN geçicidir. Başkasının bilmediği, 4-8 rakamdan oluşan kendi PIN\'inizi seçin. Bundan sonra bunu kullanacaksınız.</div><div class="login"><input id="np1" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="Yeni PIN"><input id="np2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="Yeni PIN (tekrar)"></div><button class="btn pri big" style="margin-top:10px" data-a="setpin">PIN\'imi kaydet</button></div>';
 }
 function maxWeek(){return weekMon(todayNum())+(admin?7*52:7)}
-var excDraft='',excDay='',exList=[];
-function excuseBox(){
+/* ---------- mesajlar (kişi ↔ yöneticiler, kişi başına tek sohbet) ---------- */
+var msgDraft='',msgList=[],msgSig='',msgObs=null,exList=[],msgOpen=false,openThread=null,admDraft={};
+function dayTag(d){return d?'📅 '+esc(dLabel(Math.round(Date.parse(d+'T00:00:00Z')/864e5)))+' · ':''}
+function bubble(m,right,canDel){
+  return '<div class="bb'+(right?' me':'')+(m.nw?' nw':'')+'"><div>'+esc(m.txt)+'</div><span class="mt">'+dayTag(m.day)+(m.a?esc(m.by||'Yönetici')+' · ':'')+esc(fmtAt(m.at))+(canDel?' · <button class="lnk" data-a="msgdel" data-id="'+m.id+'">Sil</button>':'')+'</span></div>'}
+function msgUnread(){var n=0;msgList.forEach(function(m){if(m.a&&!m.seen)n++});return n}
+function msgBanner(){return (me&&!meAdm()&&msgUnread())?'<button class="card nb" data-a="msggo">📩 Yöneticiden yeni mesaj var</button>':''}
+function msgBox(){
   if(!me||meAdm()||isTop(staffById[me.id]||{}))return '';
-  var tn=todayNum(),o='<option value="">Genel (belirli bir gün yok)</option>';
-  for(var i=0;i<7;i++){var dn=week+i;if(dn<tn)continue;var ds=dstr(dn);o+='<option value="'+ds+'"'+(ds===excDay?' selected':'')+'>'+DAYS[i]+' · '+dLabel(dn)+'</option>'}
-  return '<div class="card"><div class="sub">Mazeret Bildir</div><div class="mute s">Yazdığınızı yalnızca yöneticiler görür.</div><select id="excday" style="width:100%;margin-top:8px">'+o+'</select><textarea id="exctxt" maxlength="400" placeholder="Mazeretinizi yazın…">'+esc(excDraft)+'</textarea><button class="btn pri big" data-a="excsend">Gönder</button></div>'}
-function excCard(){
-  if(!exList.length)return '';
-  var open=exList.filter(function(e){return !e.done}),dn=exList.filter(function(e){return e.done});
-  function it(e){return '<div class="p"><div style="flex:1"><b>'+esc(e.name)+'</b> <span class="mute s">'+(e.day?esc(dLabel(Math.round(Date.parse(e.day+'T00:00:00Z')/864e5))):'Genel')+' · '+fmtAt(e.at)+'</span><div class="s">'+esc(e.txt)+'</div></div><button class="btn s" data-a="excdone" data-id="'+e.id+'" data-v="'+(e.done?0:1)+'">'+(e.done?'Geri Al':'✓ Tamam')+'</button><button class="btn s out" data-a="excdel" data-id="'+e.id+'">Sil</button></div>'}
-  return '<details class="card acc"><summary><span class="ic i2">📝</span><b>Mazeret Bildirimleri</b><span class="mute s"> · '+open.length+' Yeni</span></summary>'+(exList.length?open.map(it).join('')+(dn.length?'<div class="mute s" style="margin:8px 0 2px">Tamamlananlar</div>'+dn.map(it).join(''):''):'<div class="empty">Henüz mazeret yok</div>')+'</details>'}
-document.addEventListener('input',function(e){var t=e.target;if(t&&t.id==='exctxt')excDraft=t.value;if(t&&t.id==='excday')excDay=t.value});
-document.addEventListener('change',function(e){var t=e.target;if(t&&t.id==='excday')excDay=t.value});
+  var h='<div class="card" id="msgbox"><div class="sub">💬 Yöneticiye Mesaj</div>';
+  h+=msgList.length?'<div class="chat">'+msgList.map(function(m){return bubble({id:m.id,txt:m.txt,at:m.at,day:m.day,a:m.a,by:m.by,nw:m.a&&!m.seen},!m.a,false)}).join('')+'</div>'
+    :'<div class="mute s">Mazeretinizi ya da sorunuzu yazın. Yalnızca yöneticiler görür.</div>';
+  return h+'<textarea id="msgtxt" class="mtx" maxlength="400" placeholder="Mesajınızı yazın…">'+esc(msgDraft)+'</textarea><button class="btn pri big" data-a="msgsend">Gönder</button></div>'}
+function msgAdmin(){
+  var th={},ord=[],tot=0;
+  exList.forEach(function(e){var t=th[e.sid];if(!t){t=th[e.sid]={name:e.name,list:[],nw:0,last:e};ord.push(e.sid)}t.list.push(e);if(!e.a&&!e.done){t.nw++;tot++}});
+  var h='<details class="card acc" id="msgacc"'+(msgOpen?' open':'')+'><summary><span class="ic i2">💬</span><b>Mesajlar</b><span class="mute s"> · '+(tot?tot+' Yeni':ord.length+' Kişi')+'</span></summary>';
+  if(!ord.length)return h+'<div class="empty">Henüz mesaj yok</div></details>';
+  ord.forEach(function(sid){var t=th[sid],l=t.last;
+    h+='<details class="th" data-sid="'+sid+'"'+(openThread===sid?' open':'')+'><summary><b>'+esc(t.name)+'</b>'+(t.nw?'<span class="tag wait">'+t.nw+' yeni</span>':'')+'<span class="mute s pv">'+(l.a?'Yönetici: ':'')+esc(l.txt)+'</span></summary>'
+      +'<div class="chat">'+t.list.slice().reverse().map(function(m){return bubble({id:m.id,txt:m.txt,at:m.at,day:m.day,a:m.a,by:m.by,nw:!m.a&&!m.done},m.a,true)}).join('')+'</div>'
+      +'<textarea id="amsg-'+sid+'" class="mtx" maxlength="400" placeholder="Yanıtınızı yazın…">'+esc(admDraft[sid]||'')+'</textarea><button class="btn pri" data-a="amsgsend" data-id="'+sid+'">Gönder</button></details>'});
+  return h+'</details>'}
+async function loadMsgs(){
+  if(!me||!sb||meAdm()){msgList=[];msgSig='';return}
+  var r=await rpc('staff_messages',{p_staff:me.id,p_pin:me.pin},true);
+  if(r&&r.ok){var sg=JSON.stringify(r.list);if(sg!==msgSig){msgSig=sg;msgList=r.list||[];if(tab==='gun')scheduleRender()}}}
+async function markMsgSeen(){
+  if(!me||!msgUnread())return;
+  msgList.forEach(function(m){if(m.a)m.seen=true});msgSig='';scheduleRender();
+  await rpc('staff_messages_seen',{p_staff:me.id,p_pin:me.pin},true)}
+async function markThreadRead(sid){
+  if(!admin)return;var any=false;
+  exList.forEach(function(e){if(e.sid===sid&&!e.a&&!e.done){e.done=true;any=true}});
+  if(!any)return;scheduleRender();
+  await rpc('admin_thread_read',{p_pin:admin.pin,p_staff:sid},true)}
+function afterMain(){
+  document.querySelectorAll('#main .chat').forEach(function(c){c.scrollTop=c.scrollHeight});
+  if(msgObs){msgObs.disconnect();msgObs=null}
+  var el=$('msgbox');if(!el||!msgUnread()||!('IntersectionObserver' in window))return;
+  msgObs=new IntersectionObserver(function(es){if(es.some(function(x){return x.isIntersecting})){msgObs.disconnect();msgObs=null;setTimeout(markMsgSeen,1500)}},{threshold:.4});
+  msgObs.observe(el)}
+document.addEventListener('input',function(e){var t=e.target;if(!t||!t.id)return;if(t.id==='msgtxt')msgDraft=t.value;else if(t.id.indexOf('amsg-')===0)admDraft[+t.id.slice(5)]=t.value});
 function renderMain(){
   var el=$('main');
   if(week>maxWeek())week=maxWeek();
@@ -570,11 +612,12 @@ function renderMain(){
   if(!me&&!admin){el.innerHTML=gateHtml();fetchPinLen();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
   var h='';
-  if(tab==='gun'){var c=compute();h=weekHead()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])+excuseBox()}
+  if(tab==='gun'){var c=compute();h=msgBanner()+weekHead()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])+msgBox()}
   else if(tab==='yuzde'){h=weekHead()+pctTable(compute())}
   else if(tab==='yon'){h=adminTab()}
   else if(tab==='hrk'){h=logTab()}
   el.innerHTML=h;
+  afterMain();
 }
 function renderAll(){renderAuth();renderInstall();renderNav();renderMain()}
 function scheduleRender(){
@@ -584,7 +627,8 @@ function scheduleRender(){
     renderMain()},60);
 }
 document.addEventListener('focusout',function(){if(pendingRender){pendingRender=false;setTimeout(scheduleRender,250)}});
-document.addEventListener('toggle',function(e){var t=e.target;if(t&&t.id==='how')howOpen=t.open;if(t&&t.id==='stfbox')staffOpen=t.open},true);
+document.addEventListener('toggle',function(e){var t=e.target;if(t&&t.id==='how')howOpen=t.open;if(t&&t.id==='stfbox')staffOpen=t.open;if(t&&t.id==='msgacc')msgOpen=t.open;
+  if(t&&t.classList&&t.classList.contains('th')){var sid=+t.dataset.sid;if(t.open){openThread=sid;var ch=t.querySelector('.chat');if(ch)ch.scrollTop=ch.scrollHeight;markThreadRead(sid)}else if(openThread===sid)openThread=null}},true);
 
 /* ---------- veri ---------- */
 async function fetchAll(table,cols,orders){
@@ -617,6 +661,7 @@ async function loadAll(){
     if(!me&&admin&&admin.viaStaff)admin=null;
     var a=document.activeElement;
     if(a&&a.closest&&a.closest('#main')&&/^(SELECT|INPUT|TEXTAREA)$/.test(a.tagName)){pendingRender=true}else renderAll();
+    loadMsgs();
   }catch(e){setErr('Sunucuya ulaşılamadı, yeniden deniyorum… ('+(e.message||e)+')')}
 }
 function onChange(t,p){
@@ -662,7 +707,7 @@ function setLocal(staffId,day,type){
   else{var k=staffId+'|'+day,o=leaves.get(k);leaves.set(k,{staff_id:staffId,day:day,type:type,created_at:o?o.created_at:new Date().toISOString()})}}
 /* Giriş yalnızca bu oturum boyunca (sekme/uygulama kapanana kadar) hatırlanır.
    Uygulama ya da tarayıcı kapatılınca sessionStorage silinir ve kişi çıkış yapmış olur. */
-function saveMe(){try{if(me){sessionStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));localStorage.setItem('izin_last',String(me.id))}else sessionStorage.removeItem('izin_me');localStorage.removeItem('izin_me')}catch(e){}pushCheck()}
+function saveMe(){try{if(me){sessionStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));localStorage.setItem('izin_last',String(me.id))}else sessionStorage.removeItem('izin_me');localStorage.removeItem('izin_me')}catch(e){}pushCheck();msgList=[];msgSig='';loadMsgs()}
 function saveAdm(){try{if(admin&&!admin.viaStaff)sessionStorage.setItem('izin_adm',admin.pin);else sessionStorage.removeItem('izin_adm')}catch(e){}}
 
 var lastRes=[];
@@ -876,13 +921,18 @@ async function act(a,d,el){
       r=await rpc('admin_reset_pin',{p_pin:admin.pin,p_staff:+d.id,p_new:'0000'});
       if(r&&r.ok){await loadStatus();toast(r.name+' PIN\'i 0000 yapıldı')}
       break}
-    case 'excsend':{var tx=$('exctxt'),dy=$('excday');excDraft=tx?tx.value:excDraft;
-      if(!excDraft.trim()){toast('Mazeretinizi yazın',1);break}
-      r=await rpc('staff_add_excuse',{p_staff:me.id,p_pin:me.pin,p_day:(dy&&dy.value)||null,p_txt:excDraft});
-      if(r&&r.ok){excDraft='';excDay='';renderMain();toast('Mazeretiniz yöneticilere iletildi');pushExcuse()}
+    case 'msggo':{var mb=$('msgbox');if(mb)mb.scrollIntoView({behavior:'smooth',block:'start'});markMsgSeen();break}
+    case 'msgsend':{var tx=$('msgtxt');msgDraft=tx?tx.value:msgDraft;
+      if(!msgDraft.trim()){toast('Mesajınızı yazın',1);break}
+      r=await rpc('staff_add_excuse',{p_staff:me.id,p_pin:me.pin,p_day:null,p_txt:msgDraft});
+      if(r&&r.ok){msgDraft='';await loadMsgs();renderMain();toast('Mesajınız yöneticilere iletildi');pushExcuse()}
       break}
-    case 'excdel':{if(!confirm('Bu mazeret silinsin mi?'))break;r=await rpc('admin_excuse_delete',{p_pin:admin.pin,p_id:+d.id});if(r&&r.ok){exList=exList.filter(function(e){return e.id!==+d.id});renderMain();toast('Mazeret silindi')}break}
-    case 'excdone':{r=await rpc('admin_excuse_done',{p_pin:admin.pin,p_id:+d.id,p_done:d.v==='1'});if(r&&r.ok)loadStatus();break}
+    case 'amsgsend':{var asid=+d.id,ta=$('amsg-'+asid);admDraft[asid]=ta?ta.value:(admDraft[asid]||'');
+      if(!admDraft[asid].trim()){toast('Mesajınızı yazın',1);break}
+      r=await rpc('admin_message_send',{p_pin:admin.pin,p_staff:asid,p_txt:admDraft[asid]});
+      if(r&&r.ok){admDraft[asid]='';openThread=asid;await loadStatus(true);renderMain();toast('Yanıt gönderildi')}
+      break}
+    case 'msgdel':{if(!confirm('Bu mesaj silinsin mi?'))break;r=await rpc('admin_excuse_delete',{p_pin:admin.pin,p_id:+d.id});if(r&&r.ok){exList=exList.filter(function(e){return e.id!==+d.id});renderMain();toast('Mesaj silindi')}break}
     case 'pushtog':await pushToggle();break;
     case 'exempt':{
       var s5=staffById[d.id],on5=d.v==='1';if(!s5)break;
