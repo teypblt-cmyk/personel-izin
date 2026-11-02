@@ -237,12 +237,14 @@ function setLive(v){live=v}
 var tt;function toast(m,bad){var e=$('toast');e.textContent=m;e.className='show'+(bad?' bad':'');clearTimeout(tt);tt=setTimeout(function(){e.className=''},3600)}
 
 /* ---------- öncelik (yüzde) mantığı ---------- */
-function cmp(a,b){var L=Math.max(a.length,b.length);for(var i=0;i<L;i++){var x=i<a.length?a[i]:-1,y=i<b.length?b[i]:-1;if(x!==y)return x-y}return 0}
+var HL=3; /* yarılanma süresi (hafta): bir kullanımın ağırlığı her 3 haftada yarıya iner */
 function pcCol(v){v=Math.max(0,Math.min(100,v));var h=v<50?v/50*28:v<75?40+(v-50)/25*38:100+(v-75)/25*42,l=v<50?44:v<75?48:40;return {bg:'hsl('+Math.round(h)+',78%,'+l+'%)',fg:(h>=36&&h<=92)?'#1f1a00':'#fff'}}
 function pcChip(v,mk){var c=pcCol(v);return '<i class="pc'+(mk?' mk':'')+'" style="background:'+c.bg+';color:'+c.fg+'">'+v+'</i>'}
 
 /* Yüzde yalnızca görüntülenen haftadan ÖNCEKİ geçmişe bakar ('I' ve 'M' türleri).
-   Yıllık (Y) ve rapor (R) geçmişe sayılmaz. */
+   Yıllık (Y) ve rapor (R) geçmişe sayılmaz.
+   Her kullanım zamanla değer kaybeder: geçen haftaki 1 sayılır, ağırlık HL haftada yarıya iner.
+   Yüzde = 100 × (1 − ağırlıklı kullanım ÷ (en yüksek ağırlıklı kullanım + 1)). */
 /* ---------- Sunucu hesabı (tek doğru kaynak) ----------
    Öncelik ve atama sunucuda (week_state) hesaplanır; herkes aynı sonucu görür.
    Sunucu cevabı henüz gelmediyse ya da ulaşılamıyorsa aşağıdaki yerel hesap
@@ -288,14 +290,9 @@ function computeLocal(){
   leaves.forEach(function(l){if((l.type!=='I'&&l.type!=='M')||!uses[l.staff_id])return;var n=dnum(l.day);uses[l.staff_id][wdOf(n)].push(weekNo(n))});
   var wk=weekNo(week),pct={};staff.forEach(function(s){pct[s.id]=[]});
   for(var d=0;d<7;d++){
-    var cnt={},hs={},m=0;
-    staff.forEach(function(s){var h=uses[s.id][d].filter(function(w){return w<wk}).sort(function(a,b){return b-a});cnt[s.id]=h.length;hs[s.id]=h;if(h.length>m&&!isTop(s))m=h.length});
-    var step=100/(m+1);
-    staff.forEach(function(s){
-      var ks=[];staff.forEach(function(q){if(!isTop(q)&&cnt[q.id]===cnt[s.id]&&!ks.some(function(k){return cmp(k,hs[q.id])===0}))ks.push(hs[q.id])});
-      ks.sort(cmp);var r=0;for(var t=0;t<ks.length;t++)if(cmp(ks[t],hs[s.id])===0){r=t;break}
-      pct[s.id][d]=Math.round(100*(1-cnt[s.id]/(m+1))-(ks.length>1?r/ks.length*step*.5:0));
-    });
+    var ev={},m=0;
+    staff.forEach(function(s){var e=0;uses[s.id][d].forEach(function(w){if(w<wk)e+=Math.pow(.5,(wk-w-1)/HL)});ev[s.id]=e;if(e>m&&!isTop(s))m=e});
+    staff.forEach(function(s){pct[s.id][d]=Math.round(100*(1-ev[s.id]/(m+1)))});
   }
   var by=new Map();leaves.forEach(function(l){if(!staffById[l.staff_id])return;var a=by.get(l.day);if(a)a.push(l);else by.set(l.day,[l])});
   var nm=function(l){return staffById[l.staff_id].name};
@@ -512,7 +509,7 @@ function pctTable(c){
     h+='</tr>';
   });
   h+='</table></div><div class="bar"></div><div class="bl"><span>0</span><span>50</span><span>75</span><span>100</span></div>';
-  h+='<details id="how"'+(howOpen?' open':'')+' style="margin-top:10px"><summary><b>Öncelik nasıl okunur?</b></summary><ul class="how"><li>Sayı büyükse önceliğiniz yüksek demektir. O günü daha az kullanan öne geçer.</li><li>Kontenjan dolarsa önceliği düşük olan sırada bekler.</li><li>⭐ Mazeretli günleri yönetici verir, öncelik aranmaz.</li><li>Herkes haftada en fazla 2 gün seçebilir.</li></ul></details></div>';
+  h+='<details id="how"'+(howOpen?' open':'')+' style="margin-top:10px"><summary><b>Öncelik nasıl okunur?</b></summary><ul class="how"><li>Sayı büyükse önceliğiniz yüksek demektir. O günü daha az kullanan öne geçer.</li><li>Seçmediğiniz her hafta o günkü önceliğiniz yükselir. Eski kullanımların etkisi 3 haftada yarıya iner.</li><li>Kontenjan dolarsa önceliği düşük olan sırada bekler.</li><li>⭐ Mazeretli günleri yönetici verir, öncelik aranmaz.</li><li>Herkes haftada en fazla 2 gün seçebilir.</li></ul></details></div>';
   return h;
 }
 
