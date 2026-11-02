@@ -628,7 +628,7 @@ function scheduleRender(){
 }
 document.addEventListener('focusout',function(){if(pendingRender){pendingRender=false;setTimeout(scheduleRender,250)}});
 document.addEventListener('toggle',function(e){var t=e.target;if(t&&t.id==='how')howOpen=t.open;if(t&&t.id==='stfbox')staffOpen=t.open;if(t&&t.id==='msgacc')msgOpen=t.open;
-  if(t&&t.classList&&t.classList.contains('th')){var sid=+t.dataset.sid;if(t.open){openThread=sid;var ch=t.querySelector('.chat');if(ch)ch.scrollTop=ch.scrollHeight;markThreadRead(sid)}else if(openThread===sid)openThread=null}},true);
+  if(t&&t.classList&&t.classList.contains('th')){var sid=+t.dataset.sid;if(t.open){openThread=sid;var kp=0;document.querySelectorAll('#main details.th[open]').forEach(function(x){if(x!==t){x.open=false;kp++}});if(kp)t.scrollIntoView({block:'nearest'});var ch=t.querySelector('.chat');if(ch)ch.scrollTop=ch.scrollHeight;markThreadRead(sid)}else if(openThread===sid)openThread=null}},true);
 
 /* ---------- veri ---------- */
 async function fetchAll(table,cols,orders){
