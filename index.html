@@ -141,9 +141,6 @@ ul.how{margin:6px 0 0;padding-left:18px}
 body.gated #bg{display:block}
 #gv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0b1020;opacity:0;transition:opacity .8s}
 #gv.on{opacity:1}
-/* Giriş ekranı YouTube videosu: dikey (9:16) videoyu ekranı tamamen kaplayacak şekilde büyütür */
-#ytbox{position:absolute;top:50%;left:50%;width:max(100vw,56.25vh);height:max(177.78vw,100vh);transform:translate(-50%,-50%);opacity:0;transition:opacity .8s}
-#ytbox.on{opacity:1}#ytbox iframe,#yt{width:100%;height:100%;border:0;display:block}
 
 .gshade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,10,24,.55),rgba(6,10,24,.35) 40%,rgba(6,10,24,.7))}
 #snd{display:none;position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(10,14,30,.5);color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);cursor:pointer;align-items:center;justify-content:center;padding:0;z-index:5}
@@ -198,7 +195,7 @@ select option{color:#111;background:#fff}
 </style>
 </head>
 <body>
-<div id="bg" aria-hidden="true"><video id="gv" autoplay muted loop playsinline webkit-playsinline preload="auto" disablepictureinpicture></video><div id="ytbox"><div id="yt"></div></div><div class="gshade"></div></div>
+<div id="bg" aria-hidden="true"><video id="gv" autoplay muted loop playsinline webkit-playsinline preload="auto" disablepictureinpicture></video><div class="gshade"></div></div>
 <script>(function(){try{var v=document.getElementById("gv");v.defaultMuted=true;v.muted=true;if(!sessionStorage.getItem("izin_me")&&!sessionStorage.getItem("izin_adm")){document.body.classList.add("gated");v.addEventListener("playing",function(){v.classList.add("on")});v.src="giris.mp4";v.load();var p=v.play();if(p&&p.catch)p.catch(function(){})}}catch(e){}})()</script>
 <div class="top"><h1>Personel İzin</h1><span id="topact" class="topact"></span></div>
 <div id="err"></div>
@@ -331,40 +328,9 @@ function computeLocal(){
 }
 
 /* ---------- ekran ---------- */
-/* Giriş ekranı videosu YouTube'dan oynatılır (ilk 60 saniye, döngüde, sessiz başlar).
-   YouTube oynamaya başlayana kadar ve hiç oynamazsa (engellenmiş, gömme kapalı, internet sorunu)
-   yerel giris.mp4 yedek olarak çalışır. Oynatıcı yalnızca giriş ekranında yüklenir. */
-var YTID='DPjLkw2382E',YTEND=60,ytP=null,ytOk=false,ytFail=false,ytT=0;
-function ytLoad(){
-  if(ytP||ytFail||!$('yt'))return;
-  ytP='yukleniyor';
-  window.onYouTubeIframeAPIReady=function(){
-    try{
-      ytP=new YT.Player('yt',{host:'https://www.youtube-nocookie.com',videoId:YTID,
-        playerVars:{autoplay:1,mute:1,controls:0,playsinline:1,rel:0,start:0,end:YTEND,disablekb:1,fs:0,iv_load_policy:3,modestbranding:1},
-        events:{
-          onReady:function(e){e.target.mute();if(document.body.classList.contains('gated'))e.target.playVideo()},
-          onStateChange:function(e){
-            if(e.data===1&&!ytOk){ytOk=true;$('ytbox').classList.add('on');var v=$('gv');if(v){v.classList.remove('on');try{v.pause()}catch(x){}}}
-            if(e.data===0){e.target.seekTo(0,true);e.target.playVideo()}},
-          onError:ytGiveUp}});
-      ytT=setInterval(function(){try{if(ytOk&&ytP.getCurrentTime()>=YTEND-0.3)ytP.seekTo(0,true)}catch(x){}},500);
-    }catch(x){ytGiveUp()}};
-  var s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';s.onerror=ytGiveUp;document.head.appendChild(s);
-  setTimeout(function(){if(!ytOk)ytGiveUp()},12000);
-}
-function ytGiveUp(){
-  if(ytOk&&ytFail)return;ytFail=true;ytOk=false;clearInterval(ytT);
-  try{if(ytP&&ytP.destroy)ytP.destroy()}catch(x){}ytP=null;
-  var b=$('ytbox');if(b)b.remove();
-  var v=$('gv');if(v&&document.body.classList.contains('gated')){v.classList.add('on');playGv()}}
-function playGv(){
-  if(!document.body.classList.contains('gated'))return;
-  if(ytOk){try{ytP.playVideo()}catch(x){}return}
-  var v=$('gv');if(!v)return;v.muted=v.muted;var pr=v.play();if(pr&&pr.catch)pr.catch(function(){})}
+function playGv(){var v=$('gv');if(!v||!document.body.classList.contains('gated'))return;v.muted=v.muted;var pr=v.play();if(pr&&pr.catch)pr.catch(function(){})}
 function syncVideo(on){
   var v=$('gv'),b=$('snd');if(!v)return;
-  if(on)ytLoad();else if(ytOk){try{ytP.mute();ytP.pauseVideo()}catch(x){}}
   if(on){
     if(!v.getAttribute('src')){
       v.defaultMuted=true;v.muted=true;
@@ -379,13 +345,10 @@ function syncVideo(on){
   }
 }
 function toggleSound(){
-  var v=$('gv'),on;if(!v)return;
-  if(ytOk){try{if(ytP.isMuted()){ytP.unMute();ytP.setVolume(100);ytP.playVideo();on=true}else{ytP.mute();on=false}}catch(x){on=false}}
-  else{
-    v.muted=!v.muted;
-    if(!v.muted){var pr=v.play();if(pr&&pr.catch)pr.catch(function(){})}
-    on=!v.muted}
-  var b=$('snd');
+  var v=$('gv');if(!v)return;
+  v.muted=!v.muted;
+  if(!v.muted){var pr=v.play();if(pr&&pr.catch)pr.catch(function(){})}
+  var on=!v.muted,b=$('snd');
   b.classList.toggle('live',on);b.setAttribute('aria-pressed',on?'true':'false');b.setAttribute('aria-label',on?'Sesi kapat':'Sesi aç');
   $('snd-on').style.display=on?'':'none';$('snd-off').style.display=on?'none':'';
 }
