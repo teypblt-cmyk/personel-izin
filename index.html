@@ -636,7 +636,7 @@ function renderMain(){
   if(!me&&!admin){el.innerHTML=gateHtml();fetchPinLen();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
   var h='';
-  if(tab==='gun'){var c=compute();h=msgBanner()+weekHead()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])+msgBox()}
+  if(tab==='gun'){var c=compute();h=msgBanner()+pushCard()+weekHead()+dayStrip(c)+dayCard(selDay,c.pct,c.res[selDay])+msgBox()+pushLine()}
   else if(tab==='yuzde'){h=weekHead()+pctTable(compute())}
   else if(tab==='yon'){h=adminTab()}
   else if(tab==='hrk'){h=logTab()}
@@ -709,7 +709,7 @@ function poll(){setTimeout(function(){if(document.visibilityState==='visible')lo
 var VAPID='BDSmpRvmwCkYQz7tAK-WwJ0PYT1tKYtZA74zrFWoNvUBto5HgY99xuAietbDRrSRpbyQwpOMVBy1jSzAZFWex20',pushMine=false;
 function pushOk(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
 function b64u(v){var p='='.repeat((4-v.length%4)%4),b=atob((v+p).replace(/-/g,'+').replace(/_/g,'/')),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}
-async function pushCheck(){if(!pushOk()||!me||!meAdm()){pushMine=false;return}
+async function pushCheck(){if(!pushOk()||!me){pushMine=false;return}
   try{var reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();var n=!!sub&&Notification.permission==='granted';if(n!==pushMine){pushMine=n;renderAll()}}catch(e){}}
 async function pushToggle(){
   if(!pushOk()){toast('Bu tarayıcı bildirimi desteklemiyor. iPhone\'da önce uygulamayı ana ekrana ekleyin.',1);return}
@@ -719,7 +719,20 @@ async function pushToggle(){
   try{sub=sub||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID)})}catch(e){toast('Bildirim açılamadı',1);return}
   var r=await rpc('staff_push_save',{p_staff:me.id,p_pin:me.pin,p_sub:JSON.parse(JSON.stringify(sub))});
   if(r&&r.ok){pushMine=true;renderAll();toast('🔔 Bildirim açıldı')}}
-function pushExcuse(){try{fetch(CFG.URL+'/functions/v1/send-push',{method:'POST',headers:{'Content-Type':'application/json',apikey:CFG.KEY},body:JSON.stringify({staff_id:me.id,pin:me.pin})}).catch(function(){})}catch(e){}}
+function pushSend(o){try{fetch(CFG.URL+'/functions/v1/send-push',{method:'POST',headers:{'Content-Type':'application/json',apikey:CFG.KEY},body:JSON.stringify(o)}).catch(function(){})}catch(e){}}
+function pushExcuse(){pushSend({staff_id:me.id,pin:me.pin})}           /* kişi yazdı -> yöneticilere */
+function pushReply(sid){if(admin)pushSend({kind:'reply',pin:admin.pin,staff_id:sid})} /* yönetici yanıtladı -> kişiye */
+var weekPinged=false;                                                       /* yeni hafta açıldı -> herkese; sunucu haftada bir kez, pazartesi 08:00'den sonra gönderir */
+function pushWeek(){if(weekPinged)return;weekPinged=true;pushSend({kind:'week'})}
+/* Günler sayfası: bildirim kapalıysa üstte teşvik kartı, açıksa altta küçük bir satır */
+function pushCard(){
+  if(!me||pushMine||isTop(staffById[me.id]||{}))return '';
+  var why='<div style="flex:1"><b>Bildirimleri açın</b><div class="mute s">Yeni hafta seçime açılınca ve mazeret bildiriminize yanıt gelince haber verelim.</div></div>';
+  var h='<div class="card"><div class="row" style="align-items:flex-start;gap:10px"><span class="ic i2">🔔</span>'+why+'</div>';
+  if(!pushOk())return h+'<div class="note" style="margin-top:8px">iPhone\'da: Safari\'de paylaş düğmesinden <b>Ana Ekrana Ekle</b> deyin, uygulamayı ana ekrandaki simgeden açın ve buraya geri dönün.</div></div>';
+  if(window.Notification&&Notification.permission==='denied')return h+'<div class="note" style="margin-top:8px">Bu cihazda bildirim izni kapalı. Telefon ayarlarından bu uygulamaya bildirim izni verip sayfayı yenileyin.</div></div>';
+  return h+'<button class="btn pri big" style="margin-top:10px" data-a="pushtog">🔔 Bildirimleri Aç</button></div>'}
+function pushLine(){return (me&&pushMine)?'<div class="mute s" style="text-align:center;margin:-2px 0 12px">🔔 Bildirimler açık · <button class="lnk" data-a="pushtog">Kapat</button></div>':''}
 async function rpc(fn,args,silent){
   var r=await sb.rpc(fn,args);
   if(r.error){if(!silent)toast('Bağlantı hatası: '+r.error.message,1);return null}
@@ -955,7 +968,7 @@ async function act(a,d,el){
     case 'amsgsend':{var asid=+d.id,ta=$('amsg-'+asid);admDraft[asid]=ta?ta.value:(admDraft[asid]||'');
       if(!admDraft[asid].trim()){toast('Mesajınızı yazın',1);break}
       r=await rpc('admin_message_send',{p_pin:admin.pin,p_staff:asid,p_txt:admDraft[asid]});
-      if(r&&r.ok){admDraft[asid]='';openThread=asid;await loadStatus(true);renderMain();toast('Yanıt gönderildi')}
+      if(r&&r.ok){admDraft[asid]='';openThread=asid;pushReply(asid);await loadStatus(true);renderMain();toast('Yanıt gönderildi')}
       break}
     case 'msgdel':{if(!confirm('Bu mesaj silinsin mi?'))break;r=await rpc('admin_excuse_delete',{p_pin:admin.pin,p_id:+d.id});if(r&&r.ok){exList=exList.filter(function(e){return e.id!==+d.id});renderMain();toast('Mesaj silindi')}break}
     case 'pushtog':await pushToggle();break;
@@ -1029,7 +1042,7 @@ async function init(){
     if(r&&r.ok){me={id:sm.id,pin:sm.pin,name:r.name,mustChange:!!r.must_change};if(r.admin)admin={pin:sm.id+':'+sm.pin,viaStaff:true}}
     else if(r){me=null;saveMe()}}
   if(sa&&!admin){var r2=await rpc('admin_login',{p_pin:sa},true);if(r2&&r2.ok)admin={pin:sa};else if(r2){admin=null;saveAdm()}}
-  renderAll();msgPoll();
+  renderAll();msgPoll();pushCheck();pushWeek();
   if(admin)loadStatus();
   subscribe();poll();
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')loadAll()});
