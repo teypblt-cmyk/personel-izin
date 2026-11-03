@@ -120,6 +120,10 @@ textarea.mtx{min-height:64px}
 .th{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;background:var(--fld)}
 .th>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;min-width:0}.th>summary::-webkit-details-marker{display:none}
 .th .pv{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+.ttl{display:flex;align-items:center;gap:8px;min-width:0}
+.ver{font-size:11.5px;font-weight:700;line-height:1;padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:var(--fld);color:var(--mute);cursor:pointer;white-space:nowrap}
+.ver.yeni{background:var(--pri);border-color:var(--pri);color:var(--onp)}
+body.gated .ver{visibility:hidden}
 .adminbar{background:var(--fixbg);color:var(--fix);border-radius:8px;padding:8px 10px;margin-top:8px}
 .adminbar{display:flex;align-items:center;gap:8px}.pdfb{display:inline-flex;align-items:center;gap:6px;background:#d93a3a;color:#fff;border-color:#d93a3a;font-weight:700}
 .inst{border-color:var(--pri)}
@@ -197,7 +201,7 @@ select option{color:#111;background:#fff}
 <body>
 <div id="bg" aria-hidden="true"><video id="gv" autoplay muted loop playsinline webkit-playsinline preload="auto" disablepictureinpicture></video><div class="gshade"></div></div>
 <script>(function(){try{var v=document.getElementById("gv");v.defaultMuted=true;v.muted=true;if(!sessionStorage.getItem("izin_me")&&!sessionStorage.getItem("izin_adm")){document.body.classList.add("gated");v.addEventListener("playing",function(){v.classList.add("on")});v.src="giris.mp4";v.load();var p=v.play();if(p&&p.catch)p.catch(function(){})}}catch(e){}})()</script>
-<div class="top"><h1>Personel İzin</h1><span id="topact" class="topact"></span></div>
+<div class="top"><div class="ttl"><h1>Personel İzin</h1><button id="ver" class="ver" type="button" data-a="surum" title="Dokunun: sayfa en güncel sürümle yenilenir"></button></div><span id="topact" class="topact"></span></div>
 <div id="err"></div>
 <section class="card" id="auth"></section>
 <div id="inst"></div>
@@ -972,6 +976,7 @@ async function act(a,d,el){
       break}
     case 'msgdel':{if(!confirm('Bu mesaj silinsin mi?'))break;r=await rpc('admin_excuse_delete',{p_pin:admin.pin,p_id:+d.id});if(r&&r.ok){exList=exList.filter(function(e){return e.id!==+d.id});renderMain();toast('Mesaj silindi')}break}
     case 'pushtog':await pushToggle();break;
+    case 'surum':await surumYenile();return;
     case 'exempt':{
       var s5=staffById[d.id],on5=d.v==='1';if(!s5)break;
       if(!confirm(on5?s5.name+' kontenjana takılmadan izin seçebilsin mi?':s5.name+' için bu yetki kapatılsın mı?'))break;
@@ -1028,8 +1033,24 @@ document.addEventListener('keydown',function(e){
   else if(e.target.id==='np1'||e.target.id==='np2'){e.preventDefault();run('setpin',{},null)}});
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;renderInstall()});
 
+/* ---------- sürüm ----------
+   Her güncellemede SURUM ve version.json içindeki "v" birlikte artırılır.
+   Etikete dokununca önbellek temizlenir ve sayfa en güncel hâliyle yeniden yüklenir.
+   Sunucudaki sürüm farklıysa etiket "Yeni sürüm" olarak renklenir. */
+var SURUM='1.0',surumT=0;
+function surumBas(yeni){var b=$('ver');if(!b)return;b.textContent='v'+SURUM+(yeni?' · Yeni sürüm':'');b.classList.toggle('yeni',!!yeni)}
+async function surumKontrol(){
+  if(Date.now()-surumT<300000)return;surumT=Date.now();
+  try{var r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});var j=await r.json();surumBas(j&&j.v&&String(j.v)!==SURUM)}catch(e){}}
+async function surumYenile(){
+  var b=$('ver');if(b)b.textContent='Yükleniyor…';
+  try{if('serviceWorker' in navigator){var reg=await navigator.serviceWorker.getRegistration();if(reg)await reg.update()}}catch(e){}
+  try{if(window.caches){var ks=await caches.keys();await Promise.all(ks.map(function(k){return caches.delete(k)}))}}catch(e){}
+  location.replace(location.pathname+'?v='+Date.now())}
+
 /* ---------- başlangıç ---------- */
 async function init(){
+  surumBas(false);
   if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){navigator.serviceWorker.register('sw.js').catch(function(){})}
   if(!window.supabase){setErr('Supabase kütüphanesi yüklenemedi. İnternet bağlantınızı kontrol edip sayfayı yenileyin.');return}
   sb=window.supabase.createClient(CFG.URL,CFG.KEY,{realtime:{params:{eventsPerSecond:10}}});
@@ -1043,9 +1064,11 @@ async function init(){
     else if(r){me=null;saveMe()}}
   if(sa&&!admin){var r2=await rpc('admin_login',{p_pin:sa},true);if(r2&&r2.ok)admin={pin:sa};else if(r2){admin=null;saveAdm()}}
   renderAll();msgPoll();pushCheck();pushWeek();
+  surumKontrol();
+  if(/[?&]v=\d/.test(location.search))try{history.replaceState(null,'',location.pathname)}catch(e){}
   if(admin)loadStatus();
   subscribe();poll();
-  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')loadAll()});
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){loadAll();surumKontrol()}});
 }
 window.__izin={pdfHtml:pdfHtml,compute:compute,setWeek:function(n){week=n},setSel:function(i){selDay=i},render:renderAll};
 init();
