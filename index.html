@@ -14,7 +14,6 @@
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Personel İzin</title>
-<link rel="preload" href="giris.mp4" as="video" type="video/mp4">
 <style>
 :root{color-scheme:light dark;--bg:#eef1fb;--card:rgba(255,255,255,.78);--ink:#12141f;--mute:#5b6280;--line:rgba(40,50,110,.12);--fld:rgba(70,80,160,.07);--pri:#2563eb;--onp:#fff;--ok:#0f7b45;--okbg:#d8f5e6;--wait:#9a5b00;--waitbg:#fff0cc;--fix:#6d3fd0;--fixbg:#ece4ff;--bad:#c62b3f;--me:#fff1c2;--sh:0 1px 2px rgba(20,30,90,.06),0 8px 24px -12px rgba(40,60,160,.25);--rad:12px;--grad:linear-gradient(135deg,#2f7bff,#5b5cf0 55%,#a04cf0);--spec:linear-gradient(90deg,#2f7bff,#17b6a6,#3dc46a,#f2b81c,#ef6a3a,#c24ad6,#7a5af0)}
 @media (prefers-color-scheme:dark){:root{--bg:#050507;--card:rgba(22,23,32,.74);--ink:#f5f6fb;--mute:#a4a9c2;--line:rgba(255,255,255,.09);--fld:rgba(255,255,255,.06);--pri:#6aa8ff;--onp:#fff;--ok:#5fd68a;--okbg:rgba(60,190,120,.16);--wait:#f7c948;--waitbg:rgba(247,201,72,.14);--fix:#c4adff;--fixbg:rgba(150,110,255,.18);--bad:#ff8a9b;--me:rgba(247,201,72,.14);--sh:0 1px 0 rgba(255,255,255,.04) inset,0 14px 34px -18px rgba(0,0,0,.9);--grad:linear-gradient(135deg,#2f7bff,#6a5cff 55%,#b04cf5)}}
@@ -143,8 +142,6 @@ ul.how{margin:6px 0 0;padding-left:18px}
 #nav button{position:relative;border-radius:8px}#nav button.on{color:var(--ink);background:var(--fld);font-weight:700}#nav button.on::after{content:'';position:absolute;bottom:1px;left:50%;width:18px;height:3px;margin-left:-9px;border-radius:3px;background:var(--pri)}
 #bg{position:fixed;inset:0;z-index:-1;overflow:hidden;display:none;pointer-events:none;background:radial-gradient(120% 80% at 50% 0%,#1b2a5c,#0b1020 70%)}
 body.gated #bg{display:block}
-#gv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0b1020;opacity:0;transition:opacity .8s}
-#gv.on{opacity:1}
 /* Giriş ekranı YouTube videosu: dikey (9:16) videoyu ekranı tamamen kaplayacak şekilde büyütür */
 #ytbox{position:absolute;top:50%;left:50%;width:max(100vw,56.25vh);height:max(177.78vw,100vh);transform:translate(-50%,-50%);opacity:0;transition:opacity .8s}
 #ytbox.on{opacity:1}#ytbox iframe,#yt{width:100%;height:100%;border:0;display:block}
@@ -203,8 +200,8 @@ select option{color:#111;background:#fff}
 </style>
 </head>
 <body>
-<div id="bg" aria-hidden="true"><video id="gv" autoplay muted loop playsinline webkit-playsinline preload="auto" disablepictureinpicture></video><div id="ytbox"><div id="yt"></div></div><div class="gshade"></div></div>
-<script>(function(){try{var v=document.getElementById("gv");v.defaultMuted=true;v.muted=true;if(!sessionStorage.getItem("izin_me")&&!sessionStorage.getItem("izin_adm")){document.body.classList.add("gated");v.addEventListener("playing",function(){v.classList.add("on")});v.src="giris.mp4";v.load();var p=v.play();if(p&&p.catch)p.catch(function(){})}}catch(e){}})()</script>
+<div id="bg" aria-hidden="true"><div id="ytbox"><div id="yt"></div></div><div class="gshade"></div></div>
+<script>(function(){try{if(!sessionStorage.getItem("izin_me")&&!sessionStorage.getItem("izin_adm"))document.body.classList.add("gated")}catch(e){}})()</script>
 <div class="top"><div class="ttl"><h1>Personel İzin</h1><button id="ver" class="ver" type="button" data-a="surum" title="Dokunun: sayfa en güncel sürümle yenilenir"></button></div><span id="topact" class="topact"></span></div>
 <div id="err"></div>
 <section class="card" id="auth"></section>
@@ -336,60 +333,43 @@ function computeLocal(){
 }
 
 /* ---------- ekran ---------- */
-/* Giriş ekranı videosu YouTube'dan oynatılır (ilk 60 saniye, döngüde, sessiz başlar).
-   YouTube oynamaya başlayana kadar ve hiç oynamazsa (engellenmiş, gömme kapalı, internet sorunu)
-   yerel giris.mp4 yedek olarak çalışır. Oynatıcı yalnızca giriş ekranında yüklenir. */
-var YTID='gkyJXH0C2fg',YTEND=60,ytP=null,ytOk=false,ytFail=false,ytT=0;
+/* Giriş ekranı videosu YouTube'dan oynatılır: tam uzunlukta, bitince başa döner, sessiz başlar.
+   Oynatıcı yalnızca giriş ekranında yüklenir (çerezsiz sürüm). YouTube oynamazsa
+   (gömme kapalı, engellenmiş) arka planda uygulamanın lacivert zemini kalır, ses düğmesi gizlenir. */
+var YTID='gkyJXH0C2fg',ytP=null,ytOk=false,ytFail=false;
 function ytLoad(){
   if(ytP||ytFail||!$('yt'))return;
   ytP='yukleniyor';
   window.onYouTubeIframeAPIReady=function(){
     try{
       ytP=new YT.Player('yt',{host:'https://www.youtube-nocookie.com',videoId:YTID,
-        playerVars:{autoplay:1,mute:1,controls:0,playsinline:1,rel:0,start:0,end:YTEND,disablekb:1,fs:0,iv_load_policy:3,modestbranding:1},
+        playerVars:{autoplay:1,mute:1,controls:0,playsinline:1,rel:0,disablekb:1,fs:0,iv_load_policy:3,modestbranding:1},
         events:{
           onReady:function(e){e.target.mute();if(document.body.classList.contains('gated'))e.target.playVideo()},
           onStateChange:function(e){
-            if(e.data===1&&!ytOk){ytOk=true;$('ytbox').classList.add('on');var v=$('gv');if(v){v.classList.remove('on');try{v.pause()}catch(x){}}}
+            if(e.data===1&&!ytOk){ytOk=true;$('ytbox').classList.add('on')}
             if(e.data===0){e.target.seekTo(0,true);e.target.playVideo()}},
           onError:ytGiveUp}});
-      ytT=setInterval(function(){try{if(ytOk&&ytP.getCurrentTime()>=YTEND-0.3)ytP.seekTo(0,true)}catch(x){}},500);
     }catch(x){ytGiveUp()}};
   var s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';s.onerror=ytGiveUp;document.head.appendChild(s);
-  setTimeout(function(){if(!ytOk)ytGiveUp()},12000);
 }
 function ytGiveUp(){
-  if(ytOk&&ytFail)return;ytFail=true;ytOk=false;clearInterval(ytT);
+  ytFail=true;ytOk=false;
   try{if(ytP&&ytP.destroy)ytP.destroy()}catch(x){}ytP=null;
   var b=$('ytbox');if(b)b.remove();
-  var v=$('gv');if(v&&document.body.classList.contains('gated')){v.classList.add('on');playGv()}}
+  var sn=$('snd');if(sn)sn.style.visibility='hidden'}
 function playGv(){
-  if(!document.body.classList.contains('gated'))return;
-  if(ytOk){try{ytP.playVideo()}catch(x){}return}
-  var v=$('gv');if(!v)return;v.muted=v.muted;var pr=v.play();if(pr&&pr.catch)pr.catch(function(){})}
+  if(!ytOk||!document.body.classList.contains('gated'))return;
+  try{ytP.playVideo()}catch(x){}}
 function syncVideo(on){
-  var v=$('gv'),b=$('snd');if(!v)return;
-  if(on)ytLoad();else if(ytOk){try{ytP.mute();ytP.pauseVideo()}catch(x){}}
-  if(on){
-    if(!v.getAttribute('src')){
-      v.defaultMuted=true;v.muted=true;
-      v.addEventListener('playing',function(){v.classList.add('on')});
-      v.src='giris.mp4';
-    }
-    if(!v.__w){v.__w=1;v.addEventListener('loadeddata',playGv);v.addEventListener('canplay',playGv)}
-    playGv();
-  }else{
-    try{v.pause();v.muted=true}catch(e){}
-    if(b){b.classList.remove('live');b.setAttribute('aria-pressed','false');$('snd-on').style.display='none';$('snd-off').style.display=''}
-  }
+  var b=$('snd');
+  if(on){ytLoad();playGv();return}
+  if(ytOk){try{ytP.mute();ytP.pauseVideo()}catch(x){}}
+  if(b){b.classList.remove('live');b.setAttribute('aria-pressed','false');$('snd-on').style.display='none';$('snd-off').style.display=''}
 }
 function toggleSound(){
-  var v=$('gv'),on;if(!v)return;
-  if(ytOk){try{if(ytP.isMuted()){ytP.unMute();ytP.setVolume(100);ytP.playVideo();on=true}else{ytP.mute();on=false}}catch(x){on=false}}
-  else{
-    v.muted=!v.muted;
-    if(!v.muted){var pr=v.play();if(pr&&pr.catch)pr.catch(function(){})}
-    on=!v.muted}
+  if(!ytOk)return;var on;
+  try{if(ytP.isMuted()){ytP.unMute();ytP.setVolume(100);ytP.playVideo();on=true}else{ytP.mute();on=false}}catch(x){on=false}
   var b=$('snd');
   b.classList.toggle('live',on);b.setAttribute('aria-pressed',on?'true':'false');b.setAttribute('aria-label',on?'Sesi kapat':'Sesi aç');
   $('snd-on').style.display=on?'':'none';$('snd-off').style.display=on?'none':'';
@@ -1057,8 +1037,8 @@ document.addEventListener('change',function(e){
   if(e.target&&e.target.id==='who'){var pp=$('pin');if(pp){pp.value='';pp.focus()}fetchPinLen();return}
 
   var s=e.target;if(s.tagName==='SELECT'&&s.dataset.a){var d=Object.assign({},s.dataset,{value:s.value});s.blur();run(s.dataset.a,d,s)}});
-document.addEventListener('click',function(e){if(e.target&&e.target.closest&&e.target.closest('#snd')){toggleSound();return}var v=$('gv');if(v&&v.paused)playGv()});
-document.addEventListener('touchstart',function(){var v=$('gv');if(v&&v.paused)playGv()},{passive:true});
+document.addEventListener('click',function(e){if(e.target&&e.target.closest&&e.target.closest('#snd')){toggleSound();return}playGv()});
+document.addEventListener('touchstart',function(){playGv()},{passive:true});
 document.addEventListener('visibilitychange',function(){if(!document.hidden)playGv()});
 document.addEventListener('input',function(e){
   if(e.target&&e.target.id==='pin'){autoLogin();return}
@@ -1075,7 +1055,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();def
    Her güncellemede SURUM ve version.json içindeki "v" birlikte artırılır.
    Etikete dokununca önbellek temizlenir ve sayfa en güncel hâliyle yeniden yüklenir.
    Sunucudaki sürüm farklıysa etiket "Yeni sürüm" olarak renklenir. */
-var SURUM='1.2',surumT=0;
+var SURUM='1.3',surumT=0;
 function surumBas(yeni){var b=$('ver');if(!b)return;b.textContent='v'+SURUM+(yeni?' · Yeni sürüm':'');b.classList.toggle('yeni',!!yeni)}
 async function surumKontrol(){
   if(Date.now()-surumT<300000)return;surumT=Date.now();
