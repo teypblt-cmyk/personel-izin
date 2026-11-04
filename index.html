@@ -149,15 +149,16 @@ body.gated #bg{display:block}
 #ytbox{position:absolute;top:50%;left:50%;width:max(100vw,56.25vh);height:max(177.78vw,100vh);transform:translate(-50%,-50%);opacity:0;transition:opacity .8s}
 #ytbox.on{opacity:1}#ytbox iframe,#yt{width:100%;height:100%;border:0;display:block}
 
-.gshade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,10,24,.55),rgba(6,10,24,.35) 40%,rgba(6,10,24,.7))}
+.gshade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,10,24,.35),rgba(6,10,24,.08) 40%,rgba(6,10,24,.45))}
 #snd{display:none;position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(10,14,30,.5);color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);cursor:pointer;align-items:center;justify-content:center;padding:0;z-index:5}
 body.gated #snd{display:flex}
 #snd.live{box-shadow:0 0 0 4px rgba(79,139,255,.35)}
 body.gated .gate h2{color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.5)}
-body.gated .gsub,body.gated .ghint{color:rgba(255,255,255,.78)}
-body.gated .gcard{background:rgba(12,16,34,.55);border-color:rgba(255,255,255,.18);box-shadow:0 20px 50px -20px rgba(0,0,0,.7)}
-body.gated .gl{color:rgba(255,255,255,.72)}
-body.gated .gcard select,body.gated .gcard input{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff}
+body.gated .gsub,body.gated .ghint{color:rgba(255,255,255,.9);text-shadow:0 1px 8px rgba(0,0,0,.6)}
+/* Giriş kartı şeffaf: arkadaki video görünsün; kutular hafif koyu, yazılar gölgeli kalır ki okunsun */
+body.gated .gcard{background:rgba(12,16,34,.18);border-color:rgba(255,255,255,.22);box-shadow:0 12px 30px -18px rgba(0,0,0,.6);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+body.gated .gl{color:rgba(255,255,255,.92);text-shadow:0 1px 6px rgba(0,0,0,.7)}
+body.gated .gcard select,body.gated .gcard input{background:rgba(10,14,30,.42);border-color:rgba(255,255,255,.35);color:#fff}
 body.gated .gcard input::placeholder{color:rgba(255,255,255,.5)}
 body.gated .gcard select option{color:#14213d;background:#fff}
 
@@ -1074,7 +1075,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();def
    Her güncellemede SURUM ve version.json içindeki "v" birlikte artırılır.
    Etikete dokununca önbellek temizlenir ve sayfa en güncel hâliyle yeniden yüklenir.
    Sunucudaki sürüm farklıysa etiket "Yeni sürüm" olarak renklenir. */
-var SURUM='1.1',surumT=0;
+var SURUM='1.2',surumT=0;
 function surumBas(yeni){var b=$('ver');if(!b)return;b.textContent='v'+SURUM+(yeni?' · Yeni sürüm':'');b.classList.toggle('yeni',!!yeni)}
 async function surumKontrol(){
   if(Date.now()-surumT<300000)return;surumT=Date.now();
