@@ -194,6 +194,7 @@ h1{background:var(--spec);-webkit-background-clip:text;background-clip:text;colo
 .gcard{background:var(--card);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px)}
 select,input,textarea{background:var(--fld);border:1px solid var(--line);border-bottom:2px solid rgba(128,128,160,.55)}
 select:focus,input:focus,textarea:focus{border-bottom-color:var(--pri);box-shadow:0 8px 18px -12px var(--pri)}
+html:has(body.gated){background:#0b1020}
 body.gated{background:transparent;box-sizing:border-box;min-height:0;height:100vh;height:100dvh;padding-bottom:0}
 select option{color:#111;background:#fff}
 @media (prefers-color-scheme:dark){select option{color:#f5f6fb;background:#1b1c27}}
@@ -201,7 +202,7 @@ select option{color:#111;background:#fff}
 </head>
 <body>
 <div id="bg" aria-hidden="true"><div id="ytbox"><div id="yt"></div></div><div class="gshade"></div></div>
-<script>(function(){try{if(!sessionStorage.getItem("izin_me")&&!sessionStorage.getItem("izin_adm"))document.body.classList.add("gated")}catch(e){}})()</script>
+<script>(function(){try{if(!sessionStorage.getItem("izin_me")&&!sessionStorage.getItem("izin_adm")){document.body.classList.add("gated");document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.dataset.o=m.content;m.content="#0b1020"})}}catch(e){}})()</script>
 <div class="top"><div class="ttl"><h1>Personel İzin</h1><button id="ver" class="ver" type="button" data-a="surum" title="Dokunun: sayfa en güncel sürümle yenilenir"></button></div><span id="topact" class="topact"></span></div>
 <div id="err"></div>
 <section class="card" id="auth"></section>
@@ -333,6 +334,9 @@ function computeLocal(){
 }
 
 /* ---------- ekran ---------- */
+/* Telefonun üst çubuğu (saat, şebeke) sayfa üst rengini alır. Giriş ekranında koyu lacivert olsun ki
+   videonun üstünde açık renkli bir şerit kalmasın; giriş yapınca temanın kendi rengine döner. */
+function themeSync(g){document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){if(!m.dataset.o)m.dataset.o=m.content;var c=g?'#0b1020':m.dataset.o;if(m.content!==c)m.content=c})}
 /* Giriş ekranı videosu YouTube'dan oynatılır: tam uzunlukta, bitince başa döner, sessiz başlar.
    Oynatıcı yalnızca giriş ekranında yüklenir (çerezsiz sürüm). YouTube oynamazsa
    (gömme kapalı, engellenmiş) arka planda uygulamanın lacivert zemini kalır, ses düğmesi gizlenir. */
@@ -653,7 +657,7 @@ function renderMain(){
   if(week>maxWeek())week=maxWeek();
   if(!ready){el.innerHTML='<div class="card empty">Yükleniyor…</div>';return}
   if((tab==='yon'||tab==='hrk')&&!admin)tab='gun';
-  document.body.classList.toggle('gated',!me&&!admin);
+  document.body.classList.toggle('gated',!me&&!admin);themeSync(!me&&!admin);
   syncVideo(!me&&!admin);
   if(!me&&!admin){el.innerHTML=gateHtml();fetchPinLen();return}
   if(me&&me.mustChange){el.innerHTML=pinSetup();return}
@@ -1055,7 +1059,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();def
    Her güncellemede SURUM ve version.json içindeki "v" birlikte artırılır.
    Etikete dokununca önbellek temizlenir ve sayfa en güncel hâliyle yeniden yüklenir.
    Sunucudaki sürüm farklıysa etiket "Yeni sürüm" olarak renklenir. */
-var SURUM='1.4',surumT=0;
+var SURUM='1.5',surumT=0;
 function surumBas(yeni){var b=$('ver');if(!b)return;b.textContent='v'+SURUM+(yeni?' · Yeni sürüm':'');b.classList.toggle('yeni',!!yeni)}
 async function surumKontrol(){
   if(Date.now()-surumT<300000)return;surumT=Date.now();
