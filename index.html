@@ -336,7 +336,7 @@ function computeLocal(){
 /* Giriş ekranı videosu YouTube'dan oynatılır: tam uzunlukta, bitince başa döner, sessiz başlar.
    Oynatıcı yalnızca giriş ekranında yüklenir (çerezsiz sürüm). YouTube oynamazsa
    (gömme kapalı, engellenmiş) arka planda uygulamanın lacivert zemini kalır, ses düğmesi gizlenir. */
-var YTID='gkyJXH0C2fg',ytP=null,ytOk=false,ytFail=false;
+var YTID='hBEkKouWsbM',ytP=null,ytOk=false,ytFail=false;
 function ytLoad(){
   if(ytP||ytFail||!$('yt'))return;
   ytP='yukleniyor';
@@ -1055,7 +1055,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();def
    Her güncellemede SURUM ve version.json içindeki "v" birlikte artırılır.
    Etikete dokununca önbellek temizlenir ve sayfa en güncel hâliyle yeniden yüklenir.
    Sunucudaki sürüm farklıysa etiket "Yeni sürüm" olarak renklenir. */
-var SURUM='1.3',surumT=0;
+var SURUM='1.4',surumT=0;
 function surumBas(yeni){var b=$('ver');if(!b)return;b.textContent='v'+SURUM+(yeni?' · Yeni sürüm':'');b.classList.toggle('yeni',!!yeni)}
 async function surumKontrol(){
   if(Date.now()-surumT<300000)return;surumT=Date.now();
