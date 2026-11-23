@@ -575,6 +575,7 @@ function adminTab(){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')+(pushIds&&!isTop(s)?(pushIds.has(s.id)?' · 🔔 Bildirim açık':' · 🔕 Bildirim kapalı'):'')):'Durum yükleniyor…';
     return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b>'+''+'<div class="s mute">'+badge+'</div></div><div class="btns">'+((s.id===OWNER_ID&&!(me&&me.id===OWNER_ID))?'<span class="mute s">🔒 Yalnızca kendisi değiştirebilir</span>':'<button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN Sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği Kaldır':'Yönetici Yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button>')+'</div></div>'}).join('');
   h+='<div class="sub"><span class="ic i6">➕</span>Yeni Personel Ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik geçici PIN verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn grn" data-a="addstaff">＋ Ekle</button><pre id="pinout" class="pinout"></pre></details>';
+  if(isOwnerAdmin())h+=donemCard();
   h+=weekLists();
   h+=
   '<div class="card"><div class="sub"><span class="ic i7">💾</span>Yedek</div><div class="mute s" style="margin-bottom:8px">Tüm izin kayıtlarını telefonunuza ya da bilgisayarınıza indirir. PIN\'ler dahil değildir.</div><div class="row"><button class="btn" data-a="export-csv">Excel İçin (CSV)</button><button class="btn" data-a="export-json">Tam Yedek (JSON)</button></div></div>';
@@ -585,6 +586,18 @@ function pinSetup(){
   return '<div class="card"><div class="sub">Kendi PIN\'inizi belirleyin</div><div class="mute s" style="margin-bottom:10px">İlk girişte size verilen PIN geçicidir. Başkasının bilmediği, 4-8 rakamdan oluşan kendi PIN\'inizi seçin. Bundan sonra bunu kullanacaksınız.</div><div class="login"><input id="np1" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="Yeni PIN"><input id="np2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="Yeni PIN (tekrar)"></div><button class="btn pri big" style="margin-top:10px" data-a="setpin">PIN\'imi kaydet</button></div>';
 }
 function maxWeek(){return weekMon(todayNum())+(admin?7*52:7)}
+/* ---------- yeni dönem (yalnızca sistem sahibi) ----------
+   Sahip dışındaki tüm personeli ve tüm izin/mesaj/hareket/gün kuralı kayıtlarını siler (sunucu: admin_donem_sifirla),
+   ardından listedeki yeni kişileri ekler. Geri alınamaz, yedek alınmaz. Onay için 'SİL' yazılır. */
+var donemDraft='',donemOnay='',donemOpen=false;
+function isOwnerAdmin(){return !!(me&&me.id===OWNER_ID&&admin&&String(admin.pin||'').indexOf(OWNER_ID+':')===0)}
+function donemCard(){
+  return '<details class="card acc" id="donembox"'+(donemOpen?' open':'')+'><summary><span class="ic i2">🧹</span><b>Yeni Dönem Başlat</b><span class="mute s"> · Yalnızca siz görürsünüz</span></summary>'
+    +'<div class="note" style="border-color:var(--bad);margin-top:8px"><b>Dikkat, geri alınamaz.</b> Sizin dışınızdaki <b>tüm personel</b> (PIN, giriş ve bildirim kayıtlarıyla), <b>tüm izinler</b>, <b>mesajlar</b>, <b>hareket günlüğü</b> ve <b>kontenjan/kilit ayarları</b> silinir. Yedek alınmaz. Sizin kaydınız ve yönetici yetkiniz kalır. Personel çizelgesine dokunulmaz.</div>'
+    +'<div class="sub" style="margin-top:12px">Yeni personel</div><div class="mute s">Her satıra bir kişi: <b>Ad Soyad</b> ya da <b>Ad Soyad, PIN</b>. PIN yazmazsanız geçici PIN verilir. Boş bırakırsanız sonra "Yeni Personel Ekle"den girebilirsiniz.</div>'
+    +'<textarea id="donemlist" placeholder="Ad Soyad, PIN">'+esc(donemDraft)+'</textarea>'
+    +'<div class="mute s" style="margin-top:8px">Onaylamak için kutuya <b>SİL</b> yazın.</div><input id="donemonay" autocomplete="off" autocapitalize="characters" placeholder="SİL" value="'+esc(donemOnay)+'" style="width:100%">'
+    +'<button class="btn out big" style="margin-top:10px" data-a="donem">🧹 Tüm kayıtları sil ve yeni dönemi başlat</button><pre id="donemout" class="pinout"></pre></details>'}
 /* ---------- mesajlar (kişi ↔ yöneticiler, kişi başına tek sohbet) ---------- */
 var msgDraft='',msgList=[],msgSig='',msgObs=null,msgBoxOpen=false,exList=[],exSig='',msgOpen=false,openThread=null,admDraft={},msgPollT=0;
 function dayTag(d){return d?'📅 '+esc(dLabel(Math.round(Date.parse(d+'T00:00:00Z')/864e5)))+' · ':''}
@@ -651,7 +664,7 @@ function watchMsg(){
   var el=$('msgbox');if(!el||!el.open||!msgUnread()||!('IntersectionObserver' in window))return;
   msgObs=new IntersectionObserver(function(es){if(es.some(function(x){return x.isIntersecting})){msgObs.disconnect();msgObs=null;setTimeout(markMsgSeen,1500)}},{threshold:.4});
   msgObs.observe(el)}
-document.addEventListener('input',function(e){var t=e.target;if(!t||!t.id)return;if(t.id==='msgtxt')msgDraft=t.value;else if(t.id.indexOf('amsg-')===0)admDraft[+t.id.slice(5)]=t.value});
+document.addEventListener('input',function(e){var t=e.target;if(!t||!t.id)return;if(t.id==='donemlist')donemDraft=t.value;else if(t.id==='donemonay')donemOnay=t.value;if(t.id==='msgtxt')msgDraft=t.value;else if(t.id.indexOf('amsg-')===0)admDraft[+t.id.slice(5)]=t.value});
 function renderMain(){
   var el=$('main');
   if(week>maxWeek())week=maxWeek();
@@ -677,7 +690,7 @@ function scheduleRender(){
     renderMain()},60);
 }
 document.addEventListener('focusout',function(){if(pendingRender){pendingRender=false;setTimeout(scheduleRender,250)}});
-document.addEventListener('toggle',function(e){var t=e.target;if(t&&t.id==='how')howOpen=t.open;if(t&&t.id==='stfbox')staffOpen=t.open;if(t&&t.id==='msgacc')msgOpen=t.open;
+document.addEventListener('toggle',function(e){var t=e.target;if(t&&t.id==='how')howOpen=t.open;if(t&&t.id==='stfbox')staffOpen=t.open;if(t&&t.id==='msgacc')msgOpen=t.open;if(t&&t.id==='donembox')donemOpen=t.open;
   if(t&&t.id==='msgbox'){msgBoxOpen=t.open;if(t.open){var mc=t.querySelector('.chat');if(mc)mc.scrollTop=mc.scrollHeight;watchMsg()}}
   if(t&&t.classList&&t.classList.contains('th')){var sid=+t.dataset.sid;if(t.open){openThread=sid;var kp=0;document.querySelectorAll('#main details.th[open]').forEach(function(x){if(x!==t){x.open=false;kp++}});if(kp)t.scrollIntoView({block:'nearest'});var ch=t.querySelector('.chat');if(ch)ch.scrollTop=ch.scrollHeight;markThreadRead(sid)}else if(openThread===sid)openThread=null}},true);
 
@@ -974,6 +987,26 @@ async function act(a,d,el){
       await loadStaff();await loadStatus(true);renderAuth();renderMain();
       var po=$('pinout');if(po)po.textContent=out.join('\n');
       return}
+    case 'donem':{
+      if(!isOwnerAdmin()){toast('Bu işlemi yalnızca sistem sahibi yapabilir',1);break}
+      var onay=String(donemOnay||'').trim().toLocaleUpperCase('tr-TR');
+      if(onay!=='SİL'){toast('Onaylamak için kutuya SİL yazın',1);break}
+      var dl=String(donemDraft||'').split(/\n/).map(function(s){return s.trim()}).filter(Boolean);
+      if(!confirm('Sizin dışınızdaki TÜM personel ile tüm izin, mesaj ve hareket kayıtları KALICI olarak silinecek. Yedek alınmayacak.'+(dl.length?' Ardından '+dl.length+' yeni kişi eklenecek.':'')+'\n\nEmin misiniz?'))break;
+      r=await rpc('admin_donem_sifirla',{p_pin:admin.pin,p_onay:'SİL'});
+      if(!r||!r.ok)break;
+      var dout=['Silindi: '+r.silinen.personel+' personel, '+r.silinen.izin+' izin, '+r.silinen.mesaj+' mesaj, '+r.silinen.hareket+' hareket kaydı.'];
+      if(dl.length)dout.push('','Yeni personel ve PIN\'leri:');
+      for(var dk=0;dk<dl.length;dk++){
+        var dp=dl[dk].split(/[;,\t]/),dn=dp[0].trim(),dpin=(dp[1]||'').trim();
+        x=await rpc('admin_add_staff',{p_pin:admin.pin,p_name:dn,p_staff_pin:dpin||null},true);
+        dout.push(x&&x.ok?x.name+': '+x.pin:dn+': HATA - '+((x&&x.error)||'bağlantı'));
+      }
+      donemDraft='';donemOnay='';msgList=[];msgSig='';exList=[];exSig='';
+      await loadStaff();await loadAll();await loadStatus(true);renderAuth();renderMain();
+      var dpo=$('donemout');if(dpo)dpo.textContent=dout.join('\n');
+      toast('Yeni dönem başlatıldı');
+      return}
     case 'setpin':{
       var a1=($('np1').value||'').trim(),a2=($('np2').value||'').trim();
       if(!/^[0-9]{4,8}$/.test(a1)){toast('PIN 4-8 rakam olmalı',1);break}
@@ -1061,7 +1094,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();def
    Her güncellemede SURUM ve version.json içindeki "v" birlikte artırılır.
    Etikete dokununca önbellek temizlenir ve sayfa en güncel hâliyle yeniden yüklenir.
    Sunucudaki sürüm farklıysa etiket "Yeni sürüm" olarak renklenir. */
-var SURUM='1.8',surumT=0;
+var SURUM='1.9',surumT=0;
 function surumBas(yeni){var b=$('ver');if(!b)return;b.textContent='v'+SURUM+(yeni?' · Yeni sürüm':'');b.classList.toggle('yeni',!!yeni)}
 async function surumKontrol(){
   if(Date.now()-surumT<300000)return;surumT=Date.now();
