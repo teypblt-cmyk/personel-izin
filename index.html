@@ -433,8 +433,8 @@ function renderInstall(){
 function renderNav(){
   if(!me&&!admin){$('nav').style.display='none';$('nav').innerHTML='';return}
   $('nav').style.display='';
-  var tabs=[['gun','📅','Günler'],['yuzde','📊','Öncelik']];
-  if(admin){tabs.push(['hrk','🕘','Hareketler']);tabs.push(['yon','🛠','Yönetici'])}
+  var tabs=[['gun','📅','Günler']];
+  if(admin){tabs.push(['yuzde','📊','Öncelik']);tabs.push(['hrk','🕘','Hareketler']);tabs.push(['yon','🛠','Yönetici'])} /* Öncelik listesini yalnızca yöneticiler görür */
   $('nav').innerHTML=tabs.map(function(t){return '<button data-a="tab" data-t="'+t[0]+'" class="'+(tab===t[0]?'on':'')+'"><i>'+t[1]+'</i>'+t[2]+'</button>'}).join('');
 }
 
@@ -669,7 +669,7 @@ function renderMain(){
   var el=$('main');
   if(week>maxWeek())week=maxWeek();
   if(!ready){el.innerHTML='<div class="card empty">Yükleniyor…</div>';return}
-  if((tab==='yon'||tab==='hrk')&&!admin)tab='gun';
+  if((tab==='yon'||tab==='hrk'||tab==='yuzde')&&!admin)tab='gun';
   document.body.classList.toggle('gated',!me&&!admin);themeSync(!me&&!admin);
   syncVideo(!me&&!admin);
   if(!me&&!admin){el.innerHTML=gateHtml();fetchPinLen();return}
@@ -1094,7 +1094,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();def
    Her güncellemede SURUM ve version.json içindeki "v" birlikte artırılır.
    Etikete dokununca önbellek temizlenir ve sayfa en güncel hâliyle yeniden yüklenir.
    Sunucudaki sürüm farklıysa etiket "Yeni sürüm" olarak renklenir. */
-var SURUM='1.9',surumT=0;
+var SURUM='2.0',surumT=0;
 function surumBas(yeni){var b=$('ver');if(!b)return;b.textContent='v'+SURUM+(yeni?' · Yeni sürüm':'');b.classList.toggle('yeni',!!yeni)}
 async function surumKontrol(){
   if(Date.now()-surumT<300000)return;surumT=Date.now();
