@@ -457,7 +457,7 @@ function dayStrip(c){
 function row(l,st,i,pct){
   var s=staffById[l.staff_id],mine=me&&me.id===l.staff_id;
   var tag=l.type==='M'?'<span class="tag fix">⭐ Mazeretli</span>':l.type==='Y'?'<span class="tag fix">Yıllık</span>':l.type==='R'?'<span class="tag fix">Rapor</span>':st==='ok'?'<span class="tag ok">✓ Onaylı</span>':'<span class="tag wait">⏳ Sırada</span>';
-  var pc=l.type==='I'?pcChip(pct[l.staff_id][i]):'';
+  var pc=(l.type==='I'&&admin)?pcChip(pct[l.staff_id][i]):''; /* isim yanındaki öncelik yüzdesini yalnızca yöneticiler görür */
   var ctl='';
   if(admin){
     ctl='<select class="rs" data-a="setrow" data-day="'+l.day+'" data-staff="'+l.staff_id+'">'+['I','M','Y','R'].map(function(t){return '<option value="'+t+'"'+(t===l.type?' selected':'')+'>'+TN[t]+'</option>'}).join('')+'<option value="">Kaldır</option></select>';
@@ -1094,7 +1094,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();def
    Her güncellemede SURUM ve version.json içindeki "v" birlikte artırılır.
    Etikete dokununca önbellek temizlenir ve sayfa en güncel hâliyle yeniden yüklenir.
    Sunucudaki sürüm farklıysa etiket "Yeni sürüm" olarak renklenir. */
-var SURUM='2.0',surumT=0;
+var SURUM='2.1',surumT=0;
 function surumBas(yeni){var b=$('ver');if(!b)return;b.textContent='v'+SURUM+(yeni?' · Yeni sürüm':'');b.classList.toggle('yeni',!!yeni)}
 async function surumKontrol(){
   if(Date.now()-surumT<300000)return;surumT=Date.now();
