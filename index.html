@@ -552,8 +552,9 @@ function pctTable(c){
 }
 
 function weekLists(){
-  var c=compute(),h='',none=[],wait=[];
-  staff.forEach(function(s){var any=false;for(var i=0;i<7;i++)if(leaves.get(s.id+'|'+dstr(week+i)))any=true;if(!any)none.push(s)});
+  var c=compute(),h='',none=[],one=[],wait=[];
+  /* hiç kaydı olmayanlar; ve haftalık 2 gün sınırına sayılan (normal/mazeretli) yalnızca 1 günü olanlar */
+  staff.forEach(function(s){var any=false,n=0,dd=-1;for(var i=0;i<7;i++){var l=leaves.get(s.id+'|'+dstr(week+i));if(l){any=true;if(l.type==='I'||l.type==='M'){n++;dd=i}}}if(!any)none.push(s);else if(n===1)one.push({s:s,d:dd})});
   for(var d=0;d<7;d++)c.res[d].wait.forEach(function(l){wait.push({d:d,l:l})});
   if(wait.length){
     h+='<div class="card"><div class="sub"><span class="ic i4">⏳</span>Onay Bekleyenler <span class="mute s">· '+wait.length+' Kişi</span></div><button class="btn pri" data-a="assign" style="margin-bottom:8px">Hepsini Boş Günlere Ata</button>';
@@ -562,6 +563,9 @@ function weekLists(){
   }
   if(none.length){
     h+='<div class="card"><div class="sub"><span class="ic i5">👤</span>Bu Hafta İzin Seçmeyenler <span class="mute s">· '+none.length+' Kişi</span></div><div class="chips">'+none.map(function(s){return '<span class="chip">'+esc(s.name)+'</span>'}).join('')+'</div></div>';
+  }
+  if(one.length){
+    h+='<div class="card"><div class="sub"><span class="ic i5">☝️</span>Bu Hafta Tek Gün Seçenler <span class="mute s">· '+one.length+' Kişi</span></div><div class="chips">'+one.map(function(o){return '<span class="chip">'+esc(o.s.name)+' · '+DAYS[o.d]+'</span>'}).join('')+'</div></div>';
   }
   return h;
 }
@@ -1094,7 +1098,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();def
    Her güncellemede SURUM ve version.json içindeki "v" birlikte artırılır.
    Etikete dokununca önbellek temizlenir ve sayfa en güncel hâliyle yeniden yüklenir.
    Sunucudaki sürüm farklıysa etiket "Yeni sürüm" olarak renklenir. */
-var SURUM='2.1',surumT=0;
+var SURUM='2.2',surumT=0;
 function surumBas(yeni){var b=$('ver');if(!b)return;b.textContent='v'+SURUM+(yeni?' · Yeni sürüm':'');b.classList.toggle('yeni',!!yeni)}
 async function surumKontrol(){
   if(Date.now()-surumT<300000)return;surumT=Date.now();
