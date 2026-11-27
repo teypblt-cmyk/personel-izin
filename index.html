@@ -468,7 +468,7 @@ function row(l,st,i,pct){
 var OWNER_ID=11;
 var TOPNAMES=['Nilgün Gül'];
 function isTop(st){return TOPNAMES.indexOf(st.name)>=0}
-var MAXW=2,WEEKCAP=34,DEFQ=[5,4,5,5,5,5,5];
+var MAXW=2,WEEKCAP=32,DEFQ=[4,4,5,5,4,5,5]; /* 32 = Nilgün hariç 16 kişi x 2 gün; varsayılan günlük kontenjan toplamı da 32 */
 function weekQuotaSum(ws,ovDay,ovQ){var t=0;for(var i=0;i<7;i++){var ds=dstr(ws+i),rl=rules.get(ds)||{},q=(rl.quota!=null)?rl.quota:DEFQ[i];if(ds===ovDay)q=ovQ;t+=q}return t}
 function weekNormals(){var n=0;for(var i=0;i<7;i++){var ds=dstr(week+i);leaves.forEach(function(l){if(l.day===ds&&l.type==='I'&&staffById[l.staff_id]&&!staffById[l.staff_id].exempt)n++})}return n}
 function myWeekCount(){var n=0;for(var i=0;i<7;i++){var l=leaves.get(me.id+'|'+dstr(week+i));if(l&&(l.type==='I'||l.type==='M'))n++}return n}
@@ -1098,7 +1098,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();def
    Her güncellemede SURUM ve version.json içindeki "v" birlikte artırılır.
    Etikete dokununca önbellek temizlenir ve sayfa en güncel hâliyle yeniden yüklenir.
    Sunucudaki sürüm farklıysa etiket "Yeni sürüm" olarak renklenir. */
-var SURUM='2.2',surumT=0;
+var SURUM='2.3',surumT=0;
 function surumBas(yeni){var b=$('ver');if(!b)return;b.textContent='v'+SURUM+(yeni?' · Yeni sürüm':'');b.classList.toggle('yeni',!!yeni)}
 async function surumKontrol(){
   if(Date.now()-surumT<300000)return;surumT=Date.now();
