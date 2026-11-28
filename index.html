@@ -532,7 +532,7 @@ async function loadAllLogs(){
   logsAll=all.filter(function(g){return !((g.who||'').indexOf('Eyüp Bulut')>=0&&(g.detail||'').indexOf('Nilgün Gül')>=0)});if(tab==='hrk')scheduleRender();
 }
 function pctTable(c){
-  var h='<div class="card"><div class="tt"><b>Öncelik listesi</b><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+' haftası. Sayı yüksekse o günü almak daha kolay. İşaretliler seçilen günlerdir.</span></div><div class="wrap"><table class="pt"><tr><th class="n"></th>';
+  var h='<div class="card"><div class="tt"><b>Öncelik listesi</b><span class="mute s">'+dLabel(week)+' – '+dLabel(week+6)+'</span></div><div class="wrap"><table class="pt"><tr><th class="n"></th>';
   for(var d=0;d<7;d++)h+='<th>'+DS[d]+'<small>'+dShort(week+d)+'</small></th>';
   h+='</tr>';
   staff.forEach(function(s){
@@ -547,7 +547,7 @@ function pctTable(c){
     h+='</tr>';
   });
   h+='</table></div><div class="bar"></div><div class="bl"><span>0</span><span>50</span><span>75</span><span>100</span></div>';
-  h+='<details id="how"'+(howOpen?' open':'')+' style="margin-top:10px"><summary><b>Öncelik nasıl okunur?</b></summary><ul class="how"><li>Sayı büyükse önceliğiniz yüksek demektir. O günü daha az kullanan öne geçer.</li><li>Seçmediğiniz her hafta o günkü önceliğiniz yükselir. Eski kullanımların etkisi 3 haftada yarıya iner.</li><li>Kontenjan dolarsa önceliği düşük olan sırada bekler.</li><li>⭐ Mazeretli günleri yönetici verir, öncelik aranmaz.</li><li>Herkes haftada en fazla 2 gün seçebilir.</li></ul></details></div>';
+  h+='</div>';
   return h;
 }
 
@@ -1090,7 +1090,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();def
    Her güncellemede SURUM ve version.json içindeki "v" birlikte artırılır.
    Etikete dokununca önbellek temizlenir ve sayfa en güncel hâliyle yeniden yüklenir.
    Sunucudaki sürüm farklıysa etiket "Yeni sürüm" olarak renklenir. */
-var SURUM='2.4',surumT=0;
+var SURUM='2.5',surumT=0;
 function surumBas(yeni){var b=$('ver');if(!b)return;b.textContent='v'+SURUM+(yeni?' · Yeni sürüm':'');b.classList.toggle('yeni',!!yeni)}
 async function surumKontrol(){
   if(Date.now()-surumT<300000)return;surumT=Date.now();
