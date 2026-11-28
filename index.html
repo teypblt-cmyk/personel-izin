@@ -53,6 +53,9 @@ textarea{width:100%;min-height:100px;margin:6px 0}
 .gcard select,.gcard input{width:100%;padding:13px 12px;font-size:16px;margin-bottom:14px}
 .gcard input{letter-spacing:6px;text-align:center}.gcard input::placeholder{letter-spacing:4px}
 .gcard .btn.big{margin:4px 0 12px;border-radius:12px;font-size:16.5px}
+.gseg{display:flex;gap:8px;margin-bottom:14px}.gseg button{flex:1;padding:11px 8px;border-radius:12px;border:1px solid var(--line);background:transparent;color:inherit;font:inherit;font-weight:700;font-size:15px;cursor:pointer}.gseg button.on{background:var(--pri,#2f5bea);border-color:var(--pri,#2f5bea);color:#fff}
+body.gated .gseg button{border-color:rgba(255,255,255,.35);color:#fff;background:rgba(10,14,30,.42)}body.gated .gseg button.on{background:#2f5bea;border-color:#2f5bea}
+.grpsw{display:inline-flex;border:1px solid currentColor;border-radius:8px;overflow:hidden}.grpsw button{border:0;background:transparent;color:inherit;font:inherit;font-weight:700;padding:4px 10px;cursor:pointer}.grpsw button.on{background:currentColor}.grpsw button.on span{color:var(--fixbg)}.grptag{font-weight:700;padding:2px 8px;border:1px solid currentColor;border-radius:8px}
 .ghint{font-size:12.5px;color:var(--mute);text-align:center;line-height:1.5}
 .gadm{margin-top:18px;width:100%;text-align:center}.gadm summary{color:var(--mute);font-size:13px;cursor:pointer;list-style:none}.gadm summary::-webkit-details-marker{display:none}.gadm .login{justify-content:center}
 body.gated .top h1{visibility:hidden}
@@ -243,13 +246,26 @@ function ts(s){return Date.parse(String(s).replace(' ','T').replace(/\+00$/,'Z')
 function fmtAt(at){return new Intl.DateTimeFormat('tr-TR',{timeZone:TZ,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(ts(at)))}
 
 /* ---------- durum ---------- */
-var sb=null,staff=[],staffById={},leaves=new Map(),rules=new Map(),logs=[],logsAll=null,logShow=200,logQ='',ready=false,live=false;
+var sb=null,allStaff=[],GRP='A',staff=[],staffById={},leaves=new Map(),rules=new Map(),logs=[],logsAll=null,logShow=200,logQ='',ready=false,live=false;
 var FIRST_WEEK=Math.floor(Date.UTC(2026,8,21)/864e5);
 var me=null,admin=null,statusList=[],week=weekMon(todayNum())+7,selDay=0,tab='gun',howOpen=false,staffOpen=false,deferredPrompt=null;
 var rT=0,pendingRender=false;
 
 var stSig='',lvSig='';
-function setStaff(list){var sg=list.map(function(x){return x.id+x.name+x.exempt}).join();if(sg!==stSig){stSig=sg;dataVer++}staff=list;staffById={};list.forEach(function(s){staffById[s.id]=s})}
+function setStaff(list){allStaff=list;var gl=list.filter(function(x){return (x.grp||'A')===GRP});var sg=GRP+gl.map(function(x){return x.id+x.name+x.exempt}).join();if(sg!==stSig){stSig=sg;dataVer++}staff=gl;staffById={};list.forEach(function(s){staffById[s.id]=s})}
+/* ---------- gruplar (A / B) ----------
+   Her grup tamamen ayrıdır: kendi personeli, kontenjanı, önceliği, kilidi, mesajları ve hareketleri.
+   Sistem sahibi (ve ortak yönetici PIN'i) iki grubu da görür ve aralarında geçiş yapar; diğer herkes yalnızca kendi grubunu görür. */
+function inGrp(sid){var s=staffById[sid];return !!s&&(s.grp||'A')===GRP}
+function canAll(){return !!((me&&me.id===OWNER_ID)||(admin&&!admin.viaStaff))}
+function grpPref(){try{return localStorage.getItem('izin_grp')==='B'?'B':'A'}catch(e){return 'A'}}
+function wantGrp(){return (me&&!canAll())?(me.grp||'A'):grpPref()}
+async function setGrp(g,save){
+  if(save)try{localStorage.setItem('izin_grp',g)}catch(e){}
+  if(g===GRP)return;
+  GRP=g;setStaff(allStaff);leaves=new Map();rules=new Map();logs=[];logsAll=null;lvSig='';dataVer++;
+  exList=[];exSig='';openThread=null;
+  await loadAll();if(admin)loadStatus();if(tab==='hrk')loadAllLogs()}
 function setErr(m){var e=$('err');e.textContent=m||'';e.style.display=m?'block':'none'}
 function setLive(v){live=v}
 var tt;function toast(m,bad){var e=$('toast');e.textContent=m;e.className='show'+(bad?' bad':'');clearTimeout(tt);tt=setTimeout(function(){e.className=''},3600)}
@@ -268,12 +284,12 @@ function pcChip(v,mk){var c=pcCol(v);return '<i class="pc'+(mk?' mk':'')+'" styl
    Sunucu cevabı henüz gelmediyse ya da ulaşılamıyorsa aşağıdaki yerel hesap
    (aynı algoritma) geçici olarak kullanılır. */
 var dataVer=0,wsCache={},wsBusy={},wsFailAt=0;
-function wsKey(){return dstr(week)}
+function wsKey(){return GRP+dstr(week)}
 function wsRequest(){
   var k=wsKey();if(!sb||wsBusy[k])return;
   if(Date.now()-wsFailAt<8000)return;
   var v=dataVer,wk=week;wsBusy[k]=1;
-  Promise.resolve(sb.rpc('week_state',{p_week:k})).then(function(r){
+  Promise.resolve(sb.rpc('week_state',{p_week:dstr(wk),p_grp:k.charAt(0)})).then(function(r){
     delete wsBusy[k];
     var js=r&&!r.error&&r.data;
     if(!js||!js.ok||!js.days||js.days.length!==7||!js.pct){wsFailAt=Date.now();return}
@@ -396,7 +412,7 @@ function gateHtml(){
   if(!prev){try{prev=localStorage.getItem('izin_last')||''}catch(e){}}
   var logo='<img src="giris-ikon.png" width="96" height="96" alt="Kartallar" decoding="async">';
   return '<div class="gate"><div class="glogo">'+logo+'</div><h2>Personel İzin</h2><p class="gsub">Haftalık izin seçimi</p>'+
-  '<div class="gcard"><label class="gl" for="who">Adınız</label><select id="who"><option value="">Adınızı seçin…</option>'+staff.slice().sort(function(a,b){return a.name.localeCompare(b.name,'tr')}).map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>'+
+  '<div class="gcard"><div class="gseg">'+['A','B'].map(function(g){return '<button data-a="ggrp" data-g="'+g+'" class="'+(GRP===g?'on':'')+'">'+g+' Grubu</button>'}).join('')+'</div><label class="gl" for="who">Adınız</label><select id="who"><option value="">Adınızı seçin…</option>'+staff.slice().sort(function(a,b){return a.name.localeCompare(b.name,'tr')}).map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>'+
   '<label class="gl" for="pin">PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="• • • •">'+
   '<button class="btn pri big" data-a="login">Giriş yap</button>'+
   '</div>'+
@@ -413,7 +429,7 @@ function renderAuth(){
     h+='<div class="login"><select id="who"><option value="">Adınızı seçin…</option>'+staff.map(function(s){return '<option value="'+s.id+'"'+(String(s.id)===prev?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN"><button class="btn pri" data-a="login">Giriş</button></div>';
   }
   if(admin){
-    h+='<div class="row adminbar"><b>🛠 '+(admin.viaStaff?'Yönetici yetkiniz açık':'Yönetici modu açık')+'</b><div class="sp"></div><button class="btn s pdfb" data-a="export-pdf" title="Seçili haftanın PDF listesini hazırla ve gönder"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5L13 3.5z"/><text x="12" y="19" font-size="6.5" font-weight="800" text-anchor="middle" fill="#fff">PDF</text></svg> PDF Gönder</button></div>';
+    h+='<div class="row adminbar"><b>🛠 '+(admin.viaStaff?'Yönetici':'Yönetici modu')+'</b>'+(canAll()?'<span class="grpsw">'+['A','B'].map(function(g){return '<button data-a="grp" data-g="'+g+'" class="'+(GRP===g?'on':'')+'"><span>'+g+'</span></button>'}).join('')+'</span>':'<span class="grptag">'+GRP+' Grubu</span>')+'<div class="sp"></div><button class="btn s pdfb" data-a="export-pdf" title="Seçili haftanın PDF listesini hazırla ve gönder"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5L13 3.5z"/><text x="12" y="19" font-size="6.5" font-weight="800" text-anchor="middle" fill="#fff">PDF</text></svg> PDF Gönder</button></div>';
   }
   el.style.display=h?'':'none';el.innerHTML=h;
 }
@@ -477,7 +493,8 @@ function dayCard(i,pct,r){
   var dn=week+i,tn=todayNum(),past=dn<tn,isT=dn===tn,used=r.used;
   var h='<div class="card day">';
   h+='<div class="dh"><b>'+DAYS[i]+'</b> <span class="mute">'+dLabel(dn)+(isT?' · Bugün':'')+'</span><div class="cap'+(r.quota!=null&&used>=r.quota?' full':'')+'">'+(r.locked?'🔒 Kilitli · ':'')+('Kontenjan '+r.quota+' · dolu '+used+(r.wait.length?' · '+r.wait.length+' sırada':''))+'</div></div>';
-  if(me){
+  if(me&&!inGrp(me.id)){if(!past)h+='<div class="note">Kendi izniniz için '+esc(staffById[me.id]?staffById[me.id].grp||'A':'A')+' grubuna geçin</div>'}
+  else if(me){
     var own=leaves.get(me.id+'|'+r.ds);
     if(own&&own.type!=='I'){/* yönetici belirlemiş, listede görünüyor */}
     else if(past)h+='<div class="note">Geçmiş gün, değiştirilemez</div>';
@@ -525,7 +542,7 @@ async function loadAllLogs(){
   if(!admin||!sb)return;
   var all=[],from=0,step=1000;
   for(var k=0;k<200;k++){
-    var r=await sb.from('log').select('id,at,who,action,day,detail').order('id',{ascending:false}).range(from,from+step-1);
+    var r=await sb.from('log').select('id,at,who,action,day,detail').eq('grp',GRP).order('id',{ascending:false}).range(from,from+step-1);
     if(r.error){toast('Hareketler yüklenemedi',1);break}
     all=all.concat(r.data||[]);if(!r.data||r.data.length<step)break;from+=step;
   }
@@ -577,8 +594,8 @@ function adminTab(){
   h+=msgAdmin();
   h+='<details class="card acc" id="stfbox"'+(staffOpen?' open':'')+'><summary><span class="ic i3">👥</span><b>Personel, PIN Ve Yetki</b><span class="mute s"> · '+staff.length+' Kişi'+(pushIds?' · 🔔 '+staff.filter(function(s){return pushIds.has(s.id)&&!isTop(s)}).length+' bildirim açık':'')+'</span></summary>'+staff.map(function(s){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')+(pushIds&&!isTop(s)?(pushIds.has(s.id)?' · 🔔 Bildirim açık':' · 🔕 Bildirim kapalı'):'')):'Durum yükleniyor…';
-    return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b>'+''+'<div class="s mute">'+badge+'</div></div><div class="btns">'+((s.id===OWNER_ID&&!(me&&me.id===OWNER_ID))?'<span class="mute s">🔒 Yalnızca kendisi değiştirebilir</span>':'<button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN Sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği Kaldır':'Yönetici Yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button>')+'</div></div>'}).join('');
-  h+='<div class="sub"><span class="ic i6">➕</span>Yeni Personel Ekle</div><div class="mute s">Her satıra bir isim yazın. İlk giriş PIN\'i 0000 olur; kişi ilk girişte kendi PIN\'ini belirler.</div><textarea id="newstaff" placeholder="Ad Soyad"></textarea><button class="btn grn" data-a="addstaff">＋ Ekle</button><pre id="pinout" class="pinout"></pre></details>';
+    return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b>'+''+'<div class="s mute">'+badge+'</div></div><div class="btns">'+((s.id===OWNER_ID&&!(me&&me.id===OWNER_ID))?'<span class="mute s">🔒 Yalnızca kendisi değiştirebilir</span>':'<button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN Sıfırla</button>'+(x&&canAll()?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği Kaldır':'Yönetici Yap')+'</button>':'')+(canAll()&&s.id!==OWNER_ID?'<button class="btn s" data-a="setgrp" data-id="'+s.id+'" data-g="'+(GRP==='A'?'B':'A')+'">'+(GRP==='A'?'B':'A')+' Grubuna Taşı</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button>')+'</div></div>'}).join('');
+  h+='<div class="sub"><span class="ic i6">➕</span>Yeni Personel Ekle · '+GRP+' Grubu</div><div class="mute s">Her satıra bir isim yazın. İlk giriş PIN\'i 0000 olur; kişi ilk girişte kendi PIN\'ini belirler.</div><textarea id="newstaff" placeholder="Ad Soyad"></textarea><button class="btn grn" data-a="addstaff">＋ Ekle</button><pre id="pinout" class="pinout"></pre></details>';
   if(isOwnerAdmin())h+=donemCard();
   h+=weekLists();
   h+=
@@ -617,7 +634,7 @@ function msgBox(){
   return h+'<textarea id="msgtxt" class="mtx" maxlength="400" placeholder="Mesajınızı yazın…">'+esc(msgDraft)+'</textarea><button class="btn pri big" data-a="msgsend">Gönder</button></details>'}
 function msgAdmin(){
   var th={},ord=[],tot=0;
-  exList.forEach(function(e){var t=th[e.sid];if(!t){t=th[e.sid]={name:e.name,nw:0,last:e};ord.push(e.sid)}if(!e.a&&!e.done){t.nw++;tot++}});
+  exList.forEach(function(e){if((e.g||'A')!==GRP)return;var t=th[e.sid];if(!t){t=th[e.sid]={name:e.name,nw:0,last:e};ord.push(e.sid)}if(!e.a&&!e.done){t.nw++;tot++}});
   var h='<details class="card acc" id="msgacc"'+(msgOpen?' open':'')+'><summary><span class="ic i2">💬</span><b>Mesajlar</b><span class="mute s"> · '+(tot?tot+' Yeni':ord.length+' Kişi')+'</span></summary>';
   if(!ord.length)return h+'<div class="empty">Henüz mesaj yok</div></details>';
   ord.forEach(function(sid){var t=th[sid],l=t.last;
@@ -702,7 +719,7 @@ async function fetchAll(table,cols,orders){
     var r=await q.range(from,from+999);if(r.error)throw r.error;out=out.concat(r.data);if(r.data.length<1000)break;from+=1000}
   return out}
 async function loadStaff(){
-  var r=await sb.from('staff').select('id,name,active,sort,exempt').eq('active',true).order('sort').order('name');
+  var r=await sb.from('staff').select('id,name,active,sort,exempt,grp').eq('active',true).order('sort').order('name');
   if(r.error)throw r.error;setStaff(r.data)}
 async function loadStatus(norender){
   if(!admin)return;
@@ -713,16 +730,18 @@ async function loadStatus(norender){
   var er=await rpc('admin_list_excuses',{p_pin:admin.pin},true);if(er&&er.ok){exList=er.list;exSig=JSON.stringify(er.list);if(!norender&&tab==='yon')scheduleRender()}
 }
 async function loadAll(){
+  var g=GRP;
   try{
     var r=await Promise.all([
       loadStaff(),
       fetchAll('leaves','staff_id,day,type,created_at',['day','staff_id']),
-      sb.from('day_rules').select('day,quota,locked'),
-      sb.from('log').select('id,at,who,action,day,detail').order('id',{ascending:false}).limit(40)]);
+      sb.from('day_rules').select('day,quota,locked').eq('grp',g),
+      sb.from('log').select('id,at,who,action,day,detail').eq('grp',g).order('id',{ascending:false}).limit(40)]);
+    if(g!==GRP)return;
     if(r[2].error)throw r[2].error;if(r[3].error)throw r[3].error;
-    leaves=new Map();r[1].forEach(function(l){leaves.set(l.staff_id+'|'+l.day,l)});
+    leaves=new Map();r[1].forEach(function(l){if(inGrp(l.staff_id))leaves.set(l.staff_id+'|'+l.day,l)});
     rules=new Map();r[2].data.forEach(function(x){rules.set(x.day,x)});
-    var sg2=r[1].map(function(l){return l.staff_id+l.day+l.type+l.created_at}).join()+'#'+r[2].data.map(function(x){return x.day+x.quota+x.locked}).join();if(sg2!==lvSig){lvSig=sg2;dataVer++}
+    var sg2=g+r[1].map(function(l){return l.staff_id+l.day+l.type+l.created_at}).join()+'#'+r[2].data.map(function(x){return x.day+x.quota+x.locked}).join();if(sg2!==lvSig){lvSig=sg2;dataVer++}
     logs=r[3].data;ready=true;setErr('');
     if(me&&!staffById[me.id]){me=null}
     if(!me&&admin&&admin.viaStaff)admin=null;
@@ -732,8 +751,11 @@ async function loadAll(){
   }catch(e){setErr('Sunucuya ulaşılamadı, yeniden deniyorum… ('+(e.message||e)+')')}
 }
 function onChange(t,p){
+  var ev=p.eventType,pn=p.new||{},po0=p.old||{};
+  if(t==='leaves'&&!inGrp(ev==='DELETE'?po0.staff_id:pn.staff_id)&&!inGrp(po0.staff_id))return;
+  if(t==='day_rules'&&((ev==='DELETE'?po0.grp:pn.grp)||'A')!==GRP)return;
+  if(t==='log'&&(pn.grp||'A')!==GRP)return;
   if(t==='leaves'||t==='day_rules')dataVer++;
-  var ev=p.eventType;
   if(t==='leaves'){if(ev==='DELETE'){var o=p.old||{};leaves.delete(o.staff_id+'|'+o.day)}else{var n=p.new,po=p.old||{};if(po.staff_id!=null&&po.day&&(po.staff_id!==n.staff_id||po.day!==n.day))leaves.delete(po.staff_id+'|'+po.day);leaves.set(n.staff_id+'|'+n.day,n)}}
   else if(t==='day_rules'){if(ev==='DELETE')rules.delete((p.old||{}).day);else rules.set(p.new.day,p.new)}
   else if(t==='staff'){loadStaff().then(function(){renderAuth();scheduleRender()}).catch(function(){});return}
@@ -877,12 +899,13 @@ function download(name,text,mime){
 function csvCell(v){v=String(v==null?'':v);return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
 async function exportData(kind){
   var r=await Promise.all([
-    sb.from('staff').select('id,name,active,sort,exempt').order('sort'),
+    sb.from('staff').select('id,name,active,sort,exempt,grp').eq('grp',GRP).order('sort'),
     fetchAll('leaves','staff_id,day,type,created_at',['day','staff_id']),
-    sb.from('day_rules').select('day,quota,locked'),
-    sb.from('log').select('at,who,action,day,detail').order('id',{ascending:true}).limit(1000)]);
+    sb.from('day_rules').select('day,quota,locked').eq('grp',GRP),
+    sb.from('log').select('at,who,action,day,detail').eq('grp',GRP).order('id',{ascending:true}).limit(1000)]);
   if(r[0].error||r[2].error||r[3].error)throw (r[0].error||r[2].error||r[3].error);
   var names={};r[0].data.forEach(function(s){names[s.id]=s.name});
+  r[1]=r[1].filter(function(l){return names[l.staff_id]!=null});
   var stamp=dstr(todayNum());
   if(kind==='csv'){
     var TT={I:'İzin',M:'Mazeretli',Y:'Yıllık izin',R:'Rapor'};
@@ -913,7 +936,7 @@ async function act(a,d,el){
       if(loginBusy)break;loginBusy=true;
       try{r=await rpc('staff_login',{p_staff:id,p_pin:pin})}finally{loginBusy=false}
       if(!(r&&r.ok)){var pf=$('pin');if(pf){pf.value='';pf.focus()}}
-      if(r&&r.ok){pin=await tokenize(id,pin);me={id:id,pin:pin,name:r.name,mustChange:!!r.must_change};if(r.admin)admin={pin:id+':'+pin,viaStaff:true};saveMe();renderAll();toast('Hoş geldiniz '+r.name);if(admin)loadStatus()}
+      if(r&&r.ok){pin=await tokenize(id,pin);me={id:id,pin:pin,name:r.name,grp:r.grp||'A',mustChange:!!r.must_change};if(r.admin)admin={pin:id+':'+pin,viaStaff:true};if(!canAll())try{localStorage.setItem('izin_grp',me.grp)}catch(e){}await setGrp(wantGrp());saveMe();renderAll();toast('Hoş geldiniz '+r.name);if(admin)loadStatus()}
       break}
     case 'logout':if(me)rpc('staff_session_end',{p_staff:me.id,p_pin:me.pin},true);me=null;if(admin&&admin.viaStaff)admin=null;if(tab==='yon')tab='gun';saveMe();renderAll();return;
     case 'pinchg':{
@@ -956,17 +979,17 @@ async function act(a,d,el){
         nq=Math.max(0,base+(+d.d));
         if(weekQuotaSum(weekMon(dnum(d.day)),d.day,nq)>WEEKCAP){toast('Haftalık toplam kontenjan en fazla '+WEEKCAP+' olabilir',1);break}
       }
-      r=await rpc('admin_set_quota',{p_pin:admin.pin,p_day:d.day,p_quota:nq});
+      r=await rpc('admin_set_quota',{p_pin:admin.pin,p_day:d.day,p_quota:nq,p_grp:GRP});
       if(r&&r.ok)setRule(d.day,{quota:nq});
       break}
     case 'lock':{
       var lv=d.v==='1';
-      r=await rpc('admin_set_lock',{p_pin:admin.pin,p_days:[d.day],p_locked:lv});
+      r=await rpc('admin_set_lock',{p_pin:admin.pin,p_days:[d.day],p_locked:lv,p_grp:GRP});
       if(r&&r.ok)setRule(d.day,{locked:lv});
       break}
     case 'lockweek':{
       var lw=d.v==='1',days=[];for(var i=0;i<7;i++)days.push(dstr(week+i));
-      r=await rpc('admin_set_lock',{p_pin:admin.pin,p_days:days,p_locked:lw});
+      r=await rpc('admin_set_lock',{p_pin:admin.pin,p_days:days,p_locked:lw,p_grp:GRP});
       if(r&&r.ok){days.forEach(function(x){setRule(x,{locked:lw})});toast(lw?'Hafta kilitlendi':'Kilit açıldı')}
       break}
     case 'setrow':{
@@ -985,7 +1008,7 @@ async function act(a,d,el){
       if(!lines.length){toast('Ad yazın',1);break}
       for(var k=0;k<lines.length;k++){
         var nm=lines[k].split(/[;,\t]/)[0].trim();if(!nm)continue;
-        x=await rpc('admin_add_staff',{p_pin:admin.pin,p_name:nm,p_staff_pin:'0000'},true);
+        x=await rpc('admin_add_staff',{p_pin:admin.pin,p_name:nm,p_staff_pin:'0000',p_grp:GRP},true);
         out.push(x&&x.ok?x.name+': eklendi, ilk giriş PIN\'i 0000':nm+': HATA - '+((x&&x.error)||'bağlantı'));
       }
       await loadStaff();await loadStatus(true);renderAuth();renderMain();
@@ -1044,6 +1067,13 @@ async function act(a,d,el){
       r=await rpc('admin_set_role',{p_pin:admin.pin,p_staff:+d.id,p_admin:mk});
       if(r&&r.ok){await loadStatus();toast(mk?'Yönetici yapıldı':'Yöneticilik kaldırıldı')}
       break}
+    case 'grp':await setGrp(d.g,true);renderAll();return;
+    case 'ggrp':{var wv=$('who');if(wv)wv.value='';try{localStorage.removeItem('izin_last')}catch(e){}await setGrp(d.g,true);renderAll();return}
+    case 'setgrp':{
+      var s6=staffById[d.id];if(!s6||!confirm(s6.name+' '+d.g+' grubuna taşınsın mı?'))break;
+      r=await rpc('admin_set_grp',{p_pin:admin.pin,p_staff:+d.id,p_grp:d.g});
+      if(r&&r.ok){await loadStaff();await loadAll();await loadStatus(true);renderAll();toast(s6.name+' '+d.g+' grubuna taşındı')}
+      break}
     case 'deact':{
       var s2=staffById[d.id];if(!s2||!confirm(s2.name+' listeden çıkarılsın mı? Geçmiş kayıtları saklanır.'))break;
       var ep=prompt('Onay için yönetici şifrenizi girin'+(admin.viaStaff?' (kendi PIN\'iniz)':''));if(ep===null||!ep.trim())break;
@@ -1090,7 +1120,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();def
    Her güncellemede SURUM ve version.json içindeki "v" birlikte artırılır.
    Etikete dokununca önbellek temizlenir ve sayfa en güncel hâliyle yeniden yüklenir.
    Sunucudaki sürüm farklıysa etiket "Yeni sürüm" olarak renklenir. */
-var SURUM='2.5',surumT=0;
+var SURUM='2.6',surumT=0;
 function surumBas(yeni){var b=$('ver');if(!b)return;b.textContent='v'+SURUM+(yeni?' · Yeni sürüm':'');b.classList.toggle('yeni',!!yeni)}
 async function surumKontrol(){
   if(Date.now()-surumT<300000)return;surumT=Date.now();
@@ -1110,11 +1140,13 @@ async function init(){
   var sm=null,sa=null;
   try{sm=JSON.parse(localStorage.getItem('izin_me')||sessionStorage.getItem('izin_me')||'null')}catch(e){}
   try{sa=localStorage.getItem('izin_adm')||sessionStorage.getItem('izin_adm')}catch(e){}
+  GRP=grpPref();
   await loadAll();
   if(sm&&sm.id&&sm.pin){var r=await rpc('staff_login',{p_staff:sm.id,p_pin:sm.pin},true);
-    if(r&&r.ok){var tp=await tokenize(sm.id,sm.pin);me={id:sm.id,pin:tp,name:r.name,mustChange:!!r.must_change};if(r.admin)admin={pin:sm.id+':'+tp,viaStaff:true};try{localStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:tp}));sessionStorage.removeItem('izin_me')}catch(e){}}
+    if(r&&r.ok){var tp=await tokenize(sm.id,sm.pin);me={id:sm.id,pin:tp,name:r.name,grp:r.grp||'A',mustChange:!!r.must_change};if(r.admin)admin={pin:sm.id+':'+tp,viaStaff:true};try{localStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:tp}));sessionStorage.removeItem('izin_me')}catch(e){}}
     else if(r){me=null;saveMe()}}
   if(sa&&!admin){var r2=await rpc('admin_login',{p_pin:sa},true);if(r2&&r2.ok){admin={pin:sa};saveAdm()}else if(r2){admin=null;saveAdm()}}
+  await setGrp(wantGrp());
   renderAll();msgPoll();pushCheck();pushWeek();
   surumKontrol();
   if(/[?&]v=\d/.test(location.search))try{history.replaceState(null,'',location.pathname)}catch(e){}
