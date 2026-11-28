@@ -202,7 +202,7 @@ select option{color:#111;background:#fff}
 </head>
 <body>
 <div id="bg" aria-hidden="true"><div id="ytbox"><div id="yt"></div></div><div class="gshade"></div></div>
-<script>(function(){try{if(!sessionStorage.getItem("izin_me")&&!sessionStorage.getItem("izin_adm")){document.body.classList.add("gated");document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.dataset.o=m.content;m.content="#0b1020"})}}catch(e){}})()</script>
+<script>(function(){try{if(!localStorage.getItem("izin_me")&&!localStorage.getItem("izin_adm")&&!sessionStorage.getItem("izin_me")&&!sessionStorage.getItem("izin_adm")){document.body.classList.add("gated");document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.dataset.o=m.content;m.content="#0b1020"})}}catch(e){}})()</script>
 <div class="top"><div class="ttl"><h1>Personel İzin</h1><button id="ver" class="ver" type="button" data-a="surum" title="Dokunun: sayfa en güncel sürümle yenilenir"></button></div><span id="topact" class="topact"></span></div>
 <div id="err"></div>
 <section class="card" id="auth"></section>
@@ -578,7 +578,7 @@ function adminTab(){
   h+='<details class="card acc" id="stfbox"'+(staffOpen?' open':'')+'><summary><span class="ic i3">👥</span><b>Personel, PIN Ve Yetki</b><span class="mute s"> · '+staff.length+' Kişi'+(pushIds?' · 🔔 '+staff.filter(function(s){return pushIds.has(s.id)&&!isTop(s)}).length+' bildirim açık':'')+'</span></summary>'+staff.map(function(s){
     var x=st[s.id],badge=x?((x.must_change?'⏳ Geçici PIN (henüz kendi PIN\'ini belirlemedi)':'✓ Kendi PIN\'ini belirledi')+(x.is_admin?' · ⭐ Yönetici':'')+(pushIds&&!isTop(s)?(pushIds.has(s.id)?' · 🔔 Bildirim açık':' · 🔕 Bildirim kapalı'):'')):'Durum yükleniyor…';
     return '<div class="p stf"><div class="nm2"><b>'+esc(s.name)+'</b>'+''+'<div class="s mute">'+badge+'</div></div><div class="btns">'+((s.id===OWNER_ID&&!(me&&me.id===OWNER_ID))?'<span class="mute s">🔒 Yalnızca kendisi değiştirebilir</span>':'<button class="btn s" data-a="setpinfor" data-id="'+s.id+'">PIN Sıfırla</button>'+(x?'<button class="btn s" data-a="role" data-id="'+s.id+'" data-v="'+(x.is_admin?0:1)+'">'+(x.is_admin?'Yöneticiliği Kaldır':'Yönetici Yap')+'</button>':'')+'<button class="btn s" data-a="deact" data-id="'+s.id+'">Çıkar</button>')+'</div></div>'}).join('');
-  h+='<div class="sub"><span class="ic i6">➕</span>Yeni Personel Ekle</div><div class="mute s">Her satıra bir kişi yazın. PIN yazmazsanız otomatik geçici PIN verilir. Örnek: Ali Veli, 4821</div><textarea id="newstaff" placeholder="Ad Soyad, PIN"></textarea><button class="btn grn" data-a="addstaff">＋ Ekle</button><pre id="pinout" class="pinout"></pre></details>';
+  h+='<div class="sub"><span class="ic i6">➕</span>Yeni Personel Ekle</div><div class="mute s">Her satıra bir isim yazın. İlk giriş PIN\'i 0000 olur; kişi ilk girişte kendi PIN\'ini belirler.</div><textarea id="newstaff" placeholder="Ad Soyad"></textarea><button class="btn grn" data-a="addstaff">＋ Ekle</button><pre id="pinout" class="pinout"></pre></details>';
   if(isOwnerAdmin())h+=donemCard();
   h+=weekLists();
   h+=
@@ -593,15 +593,12 @@ function maxWeek(){return weekMon(todayNum())+(admin?7*52:7)}
 /* ---------- yeni dönem (yalnızca sistem sahibi) ----------
    Sahip dışındaki tüm personeli ve tüm izin/mesaj/hareket/gün kuralı kayıtlarını siler (sunucu: admin_donem_sifirla),
    ardından listedeki yeni kişileri ekler. Geri alınamaz, yedek alınmaz. Onay için 'SİL' yazılır. */
-var donemDraft='',donemOnay='',donemOpen=false;
+var donemOnay='',donemOpen=false;
 function isOwnerAdmin(){return !!(me&&me.id===OWNER_ID&&admin&&String(admin.pin||'').indexOf(OWNER_ID+':')===0)}
 function donemCard(){
-  return '<details class="card acc" id="donembox"'+(donemOpen?' open':'')+'><summary><span class="ic i2">🧹</span><b>Yeni Dönem Başlat</b><span class="mute s"> · Yalnızca siz görürsünüz</span></summary>'
-    +'<div class="note" style="border-color:var(--bad);margin-top:8px"><b>Dikkat, geri alınamaz.</b> Sizin dışınızdaki <b>tüm personel</b> (PIN, giriş ve bildirim kayıtlarıyla), <b>tüm izinler</b>, <b>mesajlar</b>, <b>hareket günlüğü</b> ve <b>kontenjan/kilit ayarları</b> silinir. Yedek alınmaz. Sizin kaydınız ve yönetici yetkiniz kalır. Personel çizelgesine dokunulmaz.</div>'
-    +'<div class="sub" style="margin-top:12px">Yeni personel</div><div class="mute s">Her satıra bir kişi: <b>Ad Soyad</b> ya da <b>Ad Soyad, PIN</b>. PIN yazmazsanız geçici PIN verilir. Boş bırakırsanız sonra "Yeni Personel Ekle"den girebilirsiniz.</div>'
-    +'<textarea id="donemlist" placeholder="Ad Soyad, PIN">'+esc(donemDraft)+'</textarea>'
-    +'<div class="mute s" style="margin-top:8px">Onaylamak için kutuya <b>SİL</b> yazın.</div><input id="donemonay" autocomplete="off" autocapitalize="characters" placeholder="SİL" value="'+esc(donemOnay)+'" style="width:100%">'
-    +'<button class="btn out big" style="margin-top:10px" data-a="donem">🧹 Tüm kayıtları sil ve yeni dönemi başlat</button><pre id="donemout" class="pinout"></pre></details>'}
+  return '<details class="card acc" id="donembox"'+(donemOpen?' open':'')+'><summary><span class="ic i2">🧹</span><b>Yeni Dönem Başlat</b></summary>'
+    +'<input id="donemonay" autocomplete="off" autocapitalize="characters" placeholder="SİL" value="'+esc(donemOnay)+'" style="width:100%;margin-top:10px">'
+    +'<button class="btn out big" style="margin-top:10px" data-a="donem">🧹 Tüm kayıtları sil ve yeni dönemi başlat</button></details>'}
 /* ---------- mesajlar (kişi ↔ yöneticiler, kişi başına tek sohbet) ---------- */
 var msgDraft='',msgList=[],msgSig='',msgObs=null,msgBoxOpen=false,exList=[],exSig='',msgOpen=false,openThread=null,admDraft={},msgPollT=0;
 function dayTag(d){return d?'📅 '+esc(dLabel(Math.round(Date.parse(d+'T00:00:00Z')/864e5)))+' · ':''}
@@ -668,7 +665,7 @@ function watchMsg(){
   var el=$('msgbox');if(!el||!el.open||!msgUnread()||!('IntersectionObserver' in window))return;
   msgObs=new IntersectionObserver(function(es){if(es.some(function(x){return x.isIntersecting})){msgObs.disconnect();msgObs=null;setTimeout(markMsgSeen,1500)}},{threshold:.4});
   msgObs.observe(el)}
-document.addEventListener('input',function(e){var t=e.target;if(!t||!t.id)return;if(t.id==='donemlist')donemDraft=t.value;else if(t.id==='donemonay')donemOnay=t.value;if(t.id==='msgtxt')msgDraft=t.value;else if(t.id.indexOf('amsg-')===0)admDraft[+t.id.slice(5)]=t.value});
+document.addEventListener('input',function(e){var t=e.target;if(!t||!t.id)return;if(t.id==='donemonay')donemOnay=t.value;if(t.id==='msgtxt')msgDraft=t.value;else if(t.id.indexOf('amsg-')===0)admDraft[+t.id.slice(5)]=t.value});
 function renderMain(){
   var el=$('main');
   if(week>maxWeek())week=maxWeek();
@@ -790,8 +787,10 @@ function setLocal(staffId,day,type){
   else{var k=staffId+'|'+day,o=leaves.get(k);leaves.set(k,{staff_id:staffId,day:day,type:type,created_at:o?o.created_at:new Date().toISOString()})}}
 /* Giriş yalnızca bu oturum boyunca (sekme/uygulama kapanana kadar) hatırlanır.
    Uygulama ya da tarayıcı kapatılınca sessionStorage silinir ve kişi çıkış yapmış olur. */
-function saveMe(){try{if(me){sessionStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));localStorage.setItem('izin_last',String(me.id))}else sessionStorage.removeItem('izin_me');localStorage.removeItem('izin_me')}catch(e){}pushCheck();msgList=[];msgSig='';loadMsgs()}
-function saveAdm(){try{if(admin&&!admin.viaStaff)sessionStorage.setItem('izin_adm',admin.pin);else sessionStorage.removeItem('izin_adm')}catch(e){}}
+function saveMe(){try{if(me){localStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:me.pin}));localStorage.setItem('izin_last',String(me.id))}else localStorage.removeItem('izin_me');sessionStorage.removeItem('izin_me')}catch(e){}pushCheck();msgList=[];msgSig='';loadMsgs()}
+function saveAdm(){try{if(admin&&!admin.viaStaff)localStorage.setItem('izin_adm',admin.pin);else localStorage.removeItem('izin_adm');sessionStorage.removeItem('izin_adm')}catch(e){}}
+/* kalıcı oturum: PIN yerine cihaza özel anahtar saklanır, çıkış yapılana kadar açık kalır */
+async function tokenize(id,pin){if(String(pin).indexOf('T:')===0)return pin;var t=await rpc('staff_session_new',{p_staff:id,p_pin:pin},true);return t&&t.ok&&t.token?'T:'+t.token:pin}
 
 var lastRes=[];
 function weekWaitCount(){var n=0;lastRes.forEach(function(x){n+=x.wait.length});return n}
@@ -914,13 +913,14 @@ async function act(a,d,el){
       if(loginBusy)break;loginBusy=true;
       try{r=await rpc('staff_login',{p_staff:id,p_pin:pin})}finally{loginBusy=false}
       if(!(r&&r.ok)){var pf=$('pin');if(pf){pf.value='';pf.focus()}}
-      if(r&&r.ok){me={id:id,pin:pin,name:r.name,mustChange:!!r.must_change};if(r.admin)admin={pin:id+':'+pin,viaStaff:true};saveMe();renderAll();toast('Hoş geldiniz '+r.name);if(admin)loadStatus()}
+      if(r&&r.ok){pin=await tokenize(id,pin);me={id:id,pin:pin,name:r.name,mustChange:!!r.must_change};if(r.admin)admin={pin:id+':'+pin,viaStaff:true};saveMe();renderAll();toast('Hoş geldiniz '+r.name);if(admin)loadStatus()}
       break}
-    case 'logout':me=null;if(admin&&admin.viaStaff)admin=null;if(tab==='yon')tab='gun';saveMe();renderAll();return;
+    case 'logout':if(me)rpc('staff_session_end',{p_staff:me.id,p_pin:me.pin},true);me=null;if(admin&&admin.viaStaff)admin=null;if(tab==='yon')tab='gun';saveMe();renderAll();return;
     case 'pinchg':{
       var o=prompt('Eski PIN');if(o===null)break;var n=prompt('Yeni PIN (4-8 rakam)');if(n===null)break;
+      if(n.trim()==='0000'){toast('PIN 0000 olamaz',1);break}
       r=await rpc('staff_change_pin',{p_staff:me.id,p_old:o.trim(),p_new:n.trim()});
-      if(r&&r.ok){me.pin=n.trim();if(admin&&admin.viaStaff)admin.pin=me.id+':'+me.pin;saveMe();toast('PIN değiştirildi')}
+      if(r&&r.ok){me.pin=await tokenize(me.id,n.trim());if(admin&&admin.viaStaff)admin.pin=me.id+':'+me.pin;saveMe();toast('PIN değiştirildi')}
       break}
     case 'toggle':{
       var on=d.on==='1';
@@ -984,9 +984,9 @@ async function act(a,d,el){
       var lines=($('newstaff').value||'').split(/\n/).map(function(s){return s.trim()}).filter(Boolean),out=[];
       if(!lines.length){toast('Ad yazın',1);break}
       for(var k=0;k<lines.length;k++){
-        var parts=lines[k].split(/[;,\t]/),nm=parts[0].trim(),pp=(parts[1]||'').trim();
-        x=await rpc('admin_add_staff',{p_pin:admin.pin,p_name:nm,p_staff_pin:pp||null},true);
-        out.push(x&&x.ok?x.name+': '+x.pin:nm+': HATA - '+((x&&x.error)||'bağlantı'));
+        var nm=lines[k].split(/[;,\t]/)[0].trim();if(!nm)continue;
+        x=await rpc('admin_add_staff',{p_pin:admin.pin,p_name:nm,p_staff_pin:'0000'},true);
+        out.push(x&&x.ok?x.name+': eklendi, ilk giriş PIN\'i 0000':nm+': HATA - '+((x&&x.error)||'bağlantı'));
       }
       await loadStaff();await loadStatus(true);renderAuth();renderMain();
       var po=$('pinout');if(po)po.textContent=out.join('\n');
@@ -995,28 +995,20 @@ async function act(a,d,el){
       if(!isOwnerAdmin()){toast('Bu işlemi yalnızca sistem sahibi yapabilir',1);break}
       var onay=String(donemOnay||'').trim().toLocaleUpperCase('tr-TR');
       if(onay!=='SİL'){toast('Onaylamak için kutuya SİL yazın',1);break}
-      var dl=String(donemDraft||'').split(/\n/).map(function(s){return s.trim()}).filter(Boolean);
-      if(!confirm('Sizin dışınızdaki TÜM personel ile tüm izin, mesaj ve hareket kayıtları KALICI olarak silinecek. Yedek alınmayacak.'+(dl.length?' Ardından '+dl.length+' yeni kişi eklenecek.':'')+'\n\nEmin misiniz?'))break;
+      if(!confirm('Sizin dışınızdaki TÜM personel ile tüm izin, mesaj ve hareket kayıtları KALICI olarak silinecek.\n\nEmin misiniz?'))break;
       r=await rpc('admin_donem_sifirla',{p_pin:admin.pin,p_onay:'SİL'});
       if(!r||!r.ok)break;
-      var dout=['Silindi: '+r.silinen.personel+' personel, '+r.silinen.izin+' izin, '+r.silinen.mesaj+' mesaj, '+r.silinen.hareket+' hareket kaydı.'];
-      if(dl.length)dout.push('','Yeni personel ve PIN\'leri:');
-      for(var dk=0;dk<dl.length;dk++){
-        var dp=dl[dk].split(/[;,\t]/),dn=dp[0].trim(),dpin=(dp[1]||'').trim();
-        x=await rpc('admin_add_staff',{p_pin:admin.pin,p_name:dn,p_staff_pin:dpin||null},true);
-        dout.push(x&&x.ok?x.name+': '+x.pin:dn+': HATA - '+((x&&x.error)||'bağlantı'));
-      }
-      donemDraft='';donemOnay='';msgList=[];msgSig='';exList=[];exSig='';
+      donemOnay='';donemOpen=false;msgList=[];msgSig='';exList=[];exSig='';
       await loadStaff();await loadAll();await loadStatus(true);renderAuth();renderMain();
-      var dpo=$('donemout');if(dpo)dpo.textContent=dout.join('\n');
       toast('Yeni dönem başlatıldı');
       return}
     case 'setpin':{
       var a1=($('np1').value||'').trim(),a2=($('np2').value||'').trim();
       if(!/^[0-9]{4,8}$/.test(a1)){toast('PIN 4-8 rakam olmalı',1);break}
+      if(a1==='0000'){toast('PIN 0000 olamaz, kendinize özel bir PIN seçin',1);break}
       if(a1!==a2){toast('İki PIN aynı değil',1);break}
       r=await rpc('staff_change_pin',{p_staff:me.id,p_old:me.pin,p_new:a1});
-      if(r&&r.ok){me.pin=a1;me.mustChange=false;if(admin&&admin.viaStaff)admin.pin=me.id+':'+a1;saveMe();renderAll();toast('PIN kaydedildi')}
+      if(r&&r.ok){me.pin=await tokenize(me.id,String(me.pin).indexOf('T:')===0?me.pin:a1);me.mustChange=false;if(admin&&admin.viaStaff)admin.pin=me.id+':'+me.pin;saveMe();renderAll();toast('PIN kaydedildi')}
       break}
     case 'setpinfor':{
       var s1=staffById[d.id];if(!s1)break;
@@ -1098,7 +1090,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();def
    Her güncellemede SURUM ve version.json içindeki "v" birlikte artırılır.
    Etikete dokununca önbellek temizlenir ve sayfa en güncel hâliyle yeniden yüklenir.
    Sunucudaki sürüm farklıysa etiket "Yeni sürüm" olarak renklenir. */
-var SURUM='2.3',surumT=0;
+var SURUM='2.4',surumT=0;
 function surumBas(yeni){var b=$('ver');if(!b)return;b.textContent='v'+SURUM+(yeni?' · Yeni sürüm':'');b.classList.toggle('yeni',!!yeni)}
 async function surumKontrol(){
   if(Date.now()-surumT<300000)return;surumT=Date.now();
@@ -1116,14 +1108,13 @@ async function init(){
   if(!window.supabase){setErr('Supabase kütüphanesi yüklenemedi. İnternet bağlantınızı kontrol edip sayfayı yenileyin.');return}
   sb=window.supabase.createClient(CFG.URL,CFG.KEY,{realtime:{params:{eventsPerSecond:10}}});
   var sm=null,sa=null;
-  try{localStorage.removeItem('izin_me')}catch(e){}
-  try{sm=JSON.parse(sessionStorage.getItem('izin_me')||'null')}catch(e){}
-  try{sa=sessionStorage.getItem('izin_adm')}catch(e){}
+  try{sm=JSON.parse(localStorage.getItem('izin_me')||sessionStorage.getItem('izin_me')||'null')}catch(e){}
+  try{sa=localStorage.getItem('izin_adm')||sessionStorage.getItem('izin_adm')}catch(e){}
   await loadAll();
   if(sm&&sm.id&&sm.pin){var r=await rpc('staff_login',{p_staff:sm.id,p_pin:sm.pin},true);
-    if(r&&r.ok){me={id:sm.id,pin:sm.pin,name:r.name,mustChange:!!r.must_change};if(r.admin)admin={pin:sm.id+':'+sm.pin,viaStaff:true}}
+    if(r&&r.ok){var tp=await tokenize(sm.id,sm.pin);me={id:sm.id,pin:tp,name:r.name,mustChange:!!r.must_change};if(r.admin)admin={pin:sm.id+':'+tp,viaStaff:true};try{localStorage.setItem('izin_me',JSON.stringify({id:me.id,pin:tp}));sessionStorage.removeItem('izin_me')}catch(e){}}
     else if(r){me=null;saveMe()}}
-  if(sa&&!admin){var r2=await rpc('admin_login',{p_pin:sa},true);if(r2&&r2.ok)admin={pin:sa};else if(r2){admin=null;saveAdm()}}
+  if(sa&&!admin){var r2=await rpc('admin_login',{p_pin:sa},true);if(r2&&r2.ok){admin={pin:sa};saveAdm()}else if(r2){admin=null;saveAdm()}}
   renderAll();msgPoll();pushCheck();pushWeek();
   surumKontrol();
   if(/[?&]v=\d/.test(location.search))try{history.replaceState(null,'',location.pathname)}catch(e){}
